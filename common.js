@@ -50,7 +50,7 @@ async function seedData(force=false){
   ].map(t=>({id:uid(),createdAt:new Date().toISOString(),...t}));
   await saveTasks(demo);
 }
-function taskLocationText(t){return [t.outlet,t.building?'ตึก '+t.building:'',t.floor?'ชั้น '+t.floor:'',t.room?'ห้อง '+t.room:''].filter(Boolean).join(' • ')}
+function taskLocationText(t){return [t.outlet,t.room?'ห้อง '+t.room:''].filter(Boolean).join(' • ')}
 async function renderTaskDetail(id,targetId='taskDetail'){
   const t=(await getTasks()).find(x=>x.id===id);if(!t)return;
   document.getElementById(targetId).innerHTML=`<h2 style="margin-top:0">${escapeHtml(t.title)}</h2>
