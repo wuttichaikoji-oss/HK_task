@@ -6,7 +6,7 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "REPLACE_ME",
   appId: "REPLACE_ME"
 };
-window.FIREBASE_TASKS_COLLECTION = "hkfo_tasks_v17";
+window.FIREBASE_TASKS_COLLECTION = "fo_hk_tasks_v18";
 window.FIREBASE_DEVICE_TOKENS_COLLECTION = "device_tokens";
 window.FIREBASE_VAPID_KEY = "REPLACE_ME";
 window.FIREBASE_ENABLED = (

@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /hkfo_tasks_v17/{taskId} { allow read, write: if true; }
+    match /fo_hk_tasks_v18/{taskId} { allow read, write: if true; }
     match /device_tokens/{token} { allow read, write: if true; }
   }
 }

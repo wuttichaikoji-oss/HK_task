@@ -1,6 +1,6 @@
 {
-  "name": "HK x FO Task App v1.7",
-  "short_name": "HKFO Tasks",
+  "name": "FO to HK Workflow v1.8",
+  "short_name": "FO-HK v1.8",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#f4f6fb",

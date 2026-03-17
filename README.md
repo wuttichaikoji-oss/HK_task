@@ -1,42 +1,43 @@
 
-# Housekeeping × Front Office Task App v1.7
+# Front Office → HouseKeeping Workflow v1.8
 
-เวอร์ชันนี้เพิ่ม:
-- แยกข้อมูลพื้นที่แบบละเอียด: Outlet / ตึก / ชั้น / เลขห้อง
-- บอร์ดรวมมีตัวกรองตาม Outlet / ตึก / ชั้น / สถานะ / ห้อง
-- รองรับ Push Notification จริงผ่าน Firebase Cloud Messaging (FCM)
-- มี functions/ สำหรับส่งแจ้งเตือนทุกเครื่องเมื่อมีงานใหม่หรือสถานะเปลี่ยน
-- มี firebase-messaging-sw.js สำหรับแจ้งเตือนตอนแอพอยู่เบื้องหลัง
+คอนเซปต์ของเวอร์ชันนี้คือ:
 
-## วิธีเปิดใช้งาน Push Notification จริง
-1. สร้าง Firebase Project
-2. เปิด Firestore Database
-3. เปิด Cloud Messaging
-4. สร้าง Web Push certificate แล้วเอา VAPID public key มาใส่ใน firebase-config.js
-5. ใส่ค่า Firebase config ทั้งใน firebase-config.js และ firebase-config-sw.js
-6. ติดตั้ง Firebase CLI
-7. รัน:
-   firebase login
-   firebase use --add
-   firebase deploy --only hosting,functions
-8. เปิดเว็บผ่าน HTTPS / Firebase Hosting
-9. ล็อกอิน แล้วกดปุ่ม เปิดแจ้งเตือน
+- **Front Office (FO)** = คนเปิดงาน / สั่งงาน / ติดตาม / ปิดงาน
+- **HouseKeeping (HK)** = คนรับงาน / ทำงาน / ส่งงานกลับ
+- **Supervisor** = ดูภาพรวมทั้งหมด
 
-หมายเหตุ:
-- เวอร์ชันนี้มีโครง push notification จริงพร้อมไฟล์ deploy แล้ว
-- ก่อนใช้งานจริงต้องใส่ค่า Firebase / VAPID key เอง
-- firestore.rules ในชุดนี้เปิดกว้างเพื่อทดสอบ ควรปรับให้ปลอดภัยก่อนใช้งานจริง
+## หน้าใช้งาน
+- `index.html` = หน้าเข้าสู่ระบบ
+- `fo.html` = หน้า Front Office สำหรับเปิดงานให้ HK
+- `hk.html` = หน้า HouseKeeping สำหรับรับงานและส่งงานกลับ
+- `board.html` = บอร์ดรวมทุกงาน
+- `supervisor.html` = หน้าดูภาพรวมสำหรับผู้ดูแล
 
+## สถานะงานใหม่
+- `New from FO`
+- `Accepted by HK`
+- `In Progress`
+- `Done by HK`
+- `Closed by FO`
+- `Rejected / Rework`
 
-## ปรับเพิ่มใน v1.7.1
-- หน้าหัวหน้ามีปุ่มไป `หน้าบอร์ดรวม`
-- ตึก D รองรับถึง 7 ชั้น
-- `ผู้รับผิดชอบ` เปลี่ยนเป็นช่องพิมพ์เอง
-- แผนกเหลือ 2 แผนก: `HouseKeeping` และ `Front Office`
+## Logic การทำงาน
+1. FO เปิดงานใหม่
+2. HK รับงาน
+3. HK เริ่มทำงาน
+4. HK ส่งงานกลับเมื่อเสร็จ
+5. FO ตรวจและปิดงาน หรือ ตีกลับ
 
+## รหัสทดลอง
+- FO A = 1001
+- FO B = 1002
+- HK A = 2001
+- HK B = 2002
+- Supervisor = 9000
 
-## แก้ไขใน v1.7.2
-- แก้หน้าบอร์ดรวมให้กดได้ตามปกติ
-- คืนงานตัวอย่างกลับมาแล้ว
-- หน้า Login มีปุ่มออกจากระบบแล้ว
-- ตึก A/B/C = 5 ชั้น และตึก D = 7 ชั้น แบบอัตโนมัติในหน้าหัวหน้า
+## หมายเหตุ
+- ตึก A/B/C ใช้ชั้น 1–5
+- ตึก D ใช้ชั้น 1–7
+- ถ้ายังไม่เชื่อม Firebase ระบบจะใช้ Local Demo Mode
+- ถ้าเชื่อม Firebase สำเร็จ จะ sync งานข้ามเครื่องแบบ realtime

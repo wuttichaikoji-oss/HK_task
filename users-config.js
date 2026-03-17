@@ -1,8 +1,7 @@
 window.APP_USERS = [
-  { code:'1111', name:'Staff A', role:'staff', department:'HouseKeeping' },
-  { code:'2222', name:'Staff B', role:'staff', department:'HouseKeeping' },
-  { code:'3333', name:'Staff C', role:'staff', department:'Front Office' },
-  { code:'4444', name:'Staff D', role:'staff', department:'Front Office' },
-  { code:'9000', name:'หัวหน้า HK', role:'supervisor', department:'HouseKeeping' },
-  { code:'9001', name:'หัวหน้า FO', role:'supervisor', department:'Front Office' }
+  { code:'1001', name:'FO A', role:'fo', department:'Front Office' },
+  { code:'1002', name:'FO B', role:'fo', department:'Front Office' },
+  { code:'2001', name:'HK A', role:'hk', department:'HouseKeeping' },
+  { code:'2002', name:'HK B', role:'hk', department:'HouseKeeping' },
+  { code:'9000', name:'Supervisor', role:'supervisor', department:'Management' }
 ];
