@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>Laya Task Board</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div>
+        <h1>Laya Task Board</h1>
+        <p class="sub">Restaurant staff task board • Mobile + Desktop</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="installBtn" class="ghost hidden">ติดตั้งแอพ</button>
+        <button id="enableNotiBtn" class="ghost">เปิดการแจ้งเตือน</button>
+        <button id="logoutBtn" class="danger hidden">ออกจากระบบ</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="loginView" class="card auth-card">
+        <h2>เข้าสู่ระบบ</h2>
+        <p>ใช้ชื่อเล่นและสิทธิ์การใช้งานเพื่อเริ่มต้นใช้งานในแต่ละเครื่อง</p>
+        <div class="form-grid">
+          <label>
+            <span>ชื่อพนักงาน / หัวหน้า</span>
+            <input id="loginName" type="text" placeholder="เช่น Beer, Parawi, Manager Noi" />
+          </label>
+          <label>
+            <span>สิทธิ์การใช้งาน</span>
+            <select id="loginRole">
+              <option value="staff">Staff</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>
+            <span>Outlet</span>
+            <select id="loginOutlet">
+              <option value="The Taste">The Taste</option>
+              <option value="Mangrove">Mangrove</option>
+              <option value="Room Service">Room Service</option>
+              <option value="Banquet">Banquet</option>
+              <option value="All Outlet">All Outlet</option>
+            </select>
+          </label>
+        </div>
+        <button id="loginBtn" class="primary full">เริ่มใช้งาน</button>
+        <div class="note">
+          เวอร์ชันนี้รองรับ Firebase แบบเรียลไทม์ และสามารถเปิดใช้บนมือถือ/คอมได้ในโปรเจกต์เดียว
+        </div>
+      </section>
+
+      <section id="appView" class="hidden">
+        <div class="dashboard-grid">
+          <article class="card stat-card"><span>งานใหม่</span><strong id="statNew">0</strong></article>
+          <article class="card stat-card"><span>กำลังทำ</span><strong id="statProgress">0</strong></article>
+          <article class="card stat-card"><span>รอตรวจ</span><strong id="statReview">0</strong></article>
+          <article class="card stat-card"><span>ผ่านแล้ว</span><strong id="statApproved">0</strong></article>
+        </div>
+
+        <section class="toolbar card">
+          <div class="toolbar-row">
+            <div class="welcome">
+              <strong id="currentUserLabel">-</strong>
+              <span id="currentRoleLabel">-</span>
+            </div>
+            <div class="toolbar-actions">
+              <button id="refreshBtn" class="ghost">รีเฟรช</button>
+              <button id="openCreateTaskBtn" class="primary">+ เพิ่มงาน</button>
+            </div>
+          </div>
+          <div class="filter-row">
+            <input id="searchInput" type="text" placeholder="ค้นหางาน / พื้นที่ / ผู้รับผิดชอบ" />
+            <select id="filterOutlet">
+              <option value="">ทุก Outlet</option>
+              <option value="The Taste">The Taste</option>
+              <option value="Mangrove">Mangrove</option>
+              <option value="Room Service">Room Service</option>
+              <option value="Banquet">Banquet</option>
+            </select>
+            <select id="filterPriority">
+              <option value="">ทุกความสำคัญ</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+            <select id="filterMine">
+              <option value="all">ทุกงาน</option>
+              <option value="mine">เฉพาะงานของฉัน</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="board-wrapper">
+          <div class="board-column" data-status="New">
+            <div class="column-header">New <span id="countNew" class="badge">0</span></div>
+            <div id="colNew" class="task-list"></div>
+          </div>
+          <div class="board-column" data-status="Assigned">
+            <div class="column-header">Assigned <span id="countAssigned" class="badge">0</span></div>
+            <div id="colAssigned" class="task-list"></div>
+          </div>
+          <div class="board-column" data-status="In Progress">
+            <div class="column-header">In Progress <span id="countInProgress" class="badge">0</span></div>
+            <div id="colInProgress" class="task-list"></div>
+          </div>
+          <div class="board-column" data-status="Waiting Approval">
+            <div class="column-header">Waiting Approval <span id="countWaitingApproval" class="badge">0</span></div>
+            <div id="colWaitingApproval" class="task-list"></div>
+          </div>
+          <div class="board-column" data-status="Approved">
+            <div class="column-header">Approved <span id="countApproved" class="badge">0</span></div>
+            <div id="colApproved" class="task-list"></div>
+          </div>
+          <div class="board-column" data-status="Rework">
+            <div class="column-header">Rework <span id="countRework" class="badge">0</span></div>
+            <div id="colRework" class="task-list"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="taskDialog" class="modal">
+    <form method="dialog" class="modal-card" id="taskForm">
+      <div class="modal-header">
+        <h3>สร้างงานใหม่</h3>
+        <button type="button" id="closeTaskDialog" class="ghost">✕</button>
+      </div>
+      <div class="form-grid two-col">
+        <label>
+          <span>ชื่องาน</span>
+          <input id="taskTitle" type="text" required placeholder="เช่น จัดโต๊ะ VIP โต๊ะ 12" />
+        </label>
+        <label>
+          <span>Outlet</span>
+          <select id="taskOutlet" required>
+            <option value="The Taste">The Taste</option>
+            <option value="Mangrove">Mangrove</option>
+            <option value="Room Service">Room Service</option>
+            <option value="Banquet">Banquet</option>
+          </select>
+        </label>
+        <label>
+          <span>พื้นที่ / โซน</span>
+          <input id="taskArea" type="text" placeholder="เช่น Bar, Terrace, โต๊ะ 12" />
+        </label>
+        <label>
+          <span>ความสำคัญ</span>
+          <select id="taskPriority">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </label>
+        <label>
+          <span>กำหนดเสร็จ</span>
+          <input id="taskDueAt" type="datetime-local" />
+        </label>
+        <label>
+          <span>มอบหมายให้</span>
+          <input id="taskAssignedTo" type="text" placeholder="เช่น Beer, Parawi, Hostess AM" />
+        </label>
+      </div>
+      <label>
+        <span>รายละเอียด</span>
+        <textarea id="taskDescription" rows="4" placeholder="รายละเอียดงาน / มาตรฐานที่ต้องการ"></textarea>
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="cancelTaskBtn" class="ghost">ยกเลิก</button>
+        <button type="submit" class="primary">บันทึกงาน</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="detailDialog" class="modal">
+    <div class="modal-card detail-card">
+      <div class="modal-header">
+        <h3 id="detailTitle">Task Detail</h3>
+        <button type="button" id="closeDetailDialog" class="ghost">✕</button>
+      </div>
+      <div id="detailBody" class="detail-body"></div>
+    </div>
+  </dialog>
+
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
