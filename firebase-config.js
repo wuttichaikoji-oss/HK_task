@@ -1,6 +1,3 @@
-// ใส่ค่า Firebase ของคุณที่นี่
-// ถ้ายังไม่ใส่ ระบบจะทำงานแบบ Local Demo Mode อัตโนมัติ
-
 window.FIREBASE_CONFIG = {
   apiKey: "REPLACE_ME",
   authDomain: "REPLACE_ME",
@@ -9,11 +6,9 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "REPLACE_ME",
   appId: "REPLACE_ME"
 };
-
-// ชื่อ collection ใน Firestore
-window.FIREBASE_TASKS_COLLECTION = "hkfo_tasks";
-
-// เปิด/ปิดการใช้ Firebase
+window.FIREBASE_TASKS_COLLECTION = "hkfo_tasks_v17";
+window.FIREBASE_DEVICE_TOKENS_COLLECTION = "device_tokens";
+window.FIREBASE_VAPID_KEY = "REPLACE_ME";
 window.FIREBASE_ENABLED = (
   window.FIREBASE_CONFIG &&
   window.FIREBASE_CONFIG.projectId &&
