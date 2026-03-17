@@ -1,32 +1,4 @@
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open('laya-task-v1').then((cache) => cache.addAll([
-      './',
-      './index.html',
-      './styles.css',
-      './app.js',
-      './manifest.json'
-    ]))
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
-});
-
-self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : { title: 'Laya Task Board', body: 'มีอัปเดตงานใหม่' };
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Laya Task Board', {
-      body: data.body || 'มีอัปเดตงานใหม่',
-      icon: './icons/icon-192.png'
-    })
-  );
-});
+const CACHE = 'hkfo-v1-3';
+const ASSETS = ['./','./index.html','./styles.css','./app.js','./manifest.json','./icon-192.png','./icon-512.png'];
+self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))));
+self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
