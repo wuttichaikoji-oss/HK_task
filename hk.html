@@ -174,9 +174,11 @@ document.getElementById('submitForm').addEventListener('submit',async e=>{
   const fb = await checkFirebaseConnection();
   if(fb.ok) setFirebaseStatus('firebaseStatus','connected', fb.detail); else setFirebaseStatus('firebaseStatus', fb.mode, fb.detail);
   await seedData(); 
-  await render();
+  const firstData = await getData();
+  initializeSeenTasks(await visibleTasks(firstData));
+  await render(firstData);
   if(isFirebaseReady()){
-    const wait=setInterval(()=>{if(window.firebaseHelpers?.subscribe){clearInterval(wait);window.firebaseHelpers.subscribe(async(data)=>{await render(data); const fb2=await checkFirebaseConnection(); if(fb2.ok) setFirebaseStatus('firebaseStatus','connected', fb2.detail);})}},500);
+    const wait=setInterval(()=>{if(window.firebaseHelpers?.subscribe){clearInterval(wait);window.firebaseHelpers.subscribe(async(data)=>{const relevant = await visibleTasks(data); alertForNewTasks(relevant, ()=>true); await render(data); const fb2=await checkFirebaseConnection(); if(fb2.ok) setFirebaseStatus('firebaseStatus','connected', fb2.detail);})}},500);
   }
 })();
 </script></body></html>

@@ -213,3 +213,46 @@ function forceHKOnly(session){
     window.location.href = 'hk.html';
   }
 }
+
+let __lastSeenTaskIds = new Set();
+function initializeSeenTasks(tasks){
+  __lastSeenTaskIds = new Set((tasks||[]).map(t => t.id));
+}
+function playNewTaskAlert(){
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    g.gain.setValueAtTime(0.001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.36);
+  }catch(e){}
+}
+function vibrateNewTask(){
+  try{
+    if(navigator.vibrate) navigator.vibrate([180,80,180]);
+  }catch(e){}
+}
+function alertForNewTasks(tasks, filterFn){
+  const list = (tasks||[]).filter(t => !filterFn || filterFn(t));
+  const currentIds = new Set(list.map(t => t.id));
+  let hasNew = false;
+  for(const t of list){
+    if(!__lastSeenTaskIds.has(t.id)){
+      hasNew = true;
+      break;
+    }
+  }
+  if(hasNew){
+    playNewTaskAlert();
+    vibrateNewTask();
+  }
+  __lastSeenTaskIds = currentIds;
+}
