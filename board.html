@@ -13,10 +13,10 @@
 
   <div class="panel" style="margin-top:18px;">
     <div class="section-head">
-      <h2 class="section-title">LOG ด้านล่างบอร์ด</h2>
+      <h2 class="section-title">LOG Detail</h2>
       <div class="small">งานที่ FO ปิดจบแล้วจะย้ายมาเก็บที่นี่</div>
     </div>
-    <div id="logUnderBoard"></div>
+    <div id="logUnderBoard" class="log-accordion"></div>
   </div>
 </div>
 
@@ -28,8 +28,8 @@ const session = requireRole(['fo','hk','supervisor']);
 document.getElementById('welcome').textContent = 'ผู้ใช้งาน: ' + session.name + ' (' + session.role + ')';
 const nav = document.getElementById('navLinks');
 if (session.role === 'fo') nav.innerHTML = '<a href="fo.html" class="ghost">หน้า FO</a><a href="board.html" class="ghost">บอร์ดรวม</a><a href="log.html" class="ghost">LOG / Report</a><button class="ghost" id="enablePushBtn">เปิดแจ้งเตือน</button><button class="ghost" id="logoutBtn">ออกจากระบบ</button>';
-else if (session.role === 'hk') nav.innerHTML = '<a href="hk.html" class="ghost">หน้า HK</a><a href="board.html" class="ghost">บอร์ดรวม</a><a href="log.html" class="ghost">LOG / Report</a><button class="ghost" id="logoutBtn">ออกจากระบบ</button>';
-else nav.innerHTML = '<a href="supervisor.html" class="ghost">Supervisor</a><a href="board.html" class="ghost">บอร์ดรวม</a><a href="log.html" class="ghost">LOG / Report</a><button class="ghost" id="logoutBtn">ออกจากระบบ</button>';
+else if (session.role === 'hk') nav.innerHTML = '<a href="hk.html" class="ghost">หน้า HK</a><a href="board.html" class="ghost">บอร์ดรวม</a><a href="log.html" class="ghost">LOG / Report</a><button class="ghost" id="enablePushBtn">เปิดแจ้งเตือน</button><button class="ghost" id="logoutBtn">ออกจากระบบ</button>';
+else nav.innerHTML = '<a href="supervisor.html" class="ghost">Supervisor</a><a href="board.html" class="ghost">บอร์ดรวม</a><a href="log.html" class="ghost">LOG / Report</a><button class="ghost" id="enablePushBtn">เปิดแจ้งเตือน</button><button class="ghost" id="logoutBtn">ออกจากระบบ</button>';
 document.getElementById('logoutBtn').onclick = logout;
 document.getElementById('enablePushBtn').onclick=()=>enableNotificationsForCurrentUser(session,'firebaseStatus');
 
@@ -47,16 +47,33 @@ function card(t){
     </div>
   </article>`;
 }
-function logCard(t){
-  return `<article class="task">
-    <h4>${escapeHtml(t.title)}</h4>
-    <div class="meta">${escapeHtml(taskLocationText(t))}</div>
-    <div class="meta">FO: ${escapeHtml(t.requestedBy||'-')} • HK: ${escapeHtml(t.assignee||'-')}</div>
-    <div class="meta">ปิดงาน: ${fmtDate(t.closedAt)} • เวลา: ${t.totalMinutes||0} นาที</div>
-    <div class="badges">${statusBadge(t)}</div>
-    <div class="actions"><button class="good" onclick="openTask('${t.id}','logs')">ดูรายละเอียด</button></div>
-  </article>`;
+
+function logRow(t){
+  return `<div class="log-item">
+    <div class="log-summary" onclick="toggleLogItem('${t.id}')">
+      <div>
+        <div class="log-title">${escapeHtml(t.title)}</div>
+        <div class="log-meta">${escapeHtml(taskLocationText(t))} • ปิดงาน ${fmtDate(t.closedAt)} • ${t.totalMinutes||0} นาที</div>
+      </div>
+      <div class="log-chevron" id="chev-${t.id}">▾</div>
+    </div>
+    <div class="log-content hidden" id="content-${t.id}">
+      <div class="meta">FO: ${escapeHtml(t.requestedBy||'-')} • HK: ${escapeHtml(t.assignee||'-')}</div>
+      <div class="meta">เปิดงาน: ${fmtDate(t.createdAt)} • ปิดงาน: ${fmtDate(t.closedAt)}</div>
+      <div class="badges">${statusBadge(t)}</div>
+      <div class="actions"><button class="good" onclick="openTask('${t.id}','logs')">ดูรายละเอียดเต็ม</button></div>
+    </div>
+  </div>`;
 }
+
+window.toggleLogItem = function(id){
+  const content = document.getElementById('content-' + id);
+  const chev = document.getElementById('chev-' + id);
+  if(!content || !chev) return;
+  const hidden = content.classList.toggle('hidden');
+  chev.textContent = hidden ? '▾' : '▴';
+};
+
 async function render(dataOverride){
   const data = dataOverride || await getData();
   const rawTasks = data.tasks || [];
@@ -81,14 +98,12 @@ async function render(dataOverride){
   document.getElementById('board').innerHTML = STATUSES.map(s=>`<section class="column"><h3>${s} <span class="small">(${active.filter(t=>normalizeStatus(t.status)===s).length})</span></h3>${active.filter(t=>normalizeStatus(t.status)===s).map(card).join('') || '<div class="small">ไม่มีงาน</div>'}</section>`).join('');
 
   document.getElementById('logUnderBoard').innerHTML = logs.length
-    ? logs.slice(0, 12).map(logCard).join('')
+    ? logs.slice(0, 20).map(logRow).join('')
     : '<div class="small">ยังไม่มีงานที่ปิดแล้ว</div>';
 }
+
 window.openTask = async (id, source='tasks') => { await renderTaskDetail(id,'taskDetail',source); document.getElementById('taskDialog').showModal(); };
-window.closeFromBoard = async (id) => {
-  await closeTaskToLog(id, session.name);
-  await render();
-};
+window.closeFromBoard = async (id) => { await closeTaskToLog(id, session.name); await render(); };
 
 (async()=>{
   setFirebaseStatus('firebaseStatus','checking');
