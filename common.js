@@ -51,6 +51,12 @@ function findUserByCode(code){
 function usersByRole(role){
   return getUsersSnapshot().filter(u=>u.role===role);
 }
+
+function isPermissionDeniedError(err){
+  const msg = String(err?.message||err||'').toLowerCase();
+  const code = String(err?.code||'').toLowerCase();
+  return code.includes('permission-denied') || msg.includes('missing or insufficient permissions');
+}
 async function waitForFirebaseUsersHelper(maxTries=25){
   let tries=0;
   while(window.FIREBASE_ENABLED && (!window.firebaseHelpers || !window.firebaseHelpers.getUsers) && tries<maxTries){
@@ -103,29 +109,42 @@ async function createOrUpdateUser(user){
     return (order[a.role]??9)-(order[b.role]??9) || a.code.localeCompare(b.code,'en');
   });
   if(window.FIREBASE_ENABLED && window.firebaseHelpers?.upsertUser){
-    await window.firebaseHelpers.upsertUser(normalized);
-    const remote = await window.firebaseHelpers.getUsers();
-    saveLocalUsers(remote);
-    return normalized;
+    try{
+      await window.firebaseHelpers.upsertUser(normalized);
+      const remote = await window.firebaseHelpers.getUsers();
+      saveLocalUsers(remote);
+      return normalized;
+    }catch(err){
+      if(!isPermissionDeniedError(err)) throw err;
+      saveLocalUsers(current);
+      return {...normalized, __localOnly:true};
+    }
   }
   saveLocalUsers(current);
   return normalized;
 }
 async function removeUser(code){
   const target = String(code||'').trim();
-  if(!target) return;
+  if(!target) return { __removed:false };
   const current = [...getUsersSnapshot()];
   const targetUser = current.find(u=>u.code===target);
   if(targetUser?.role==='fo') throw new Error('FO หลักถูกล็อกไว้ ไม่สามารถลบได้');
   if(targetUser?.role==='supervisor' && current.filter(u=>u.role==='supervisor').length<=1) throw new Error('ต้องมี Supervisor อย่างน้อย 1 ID');
   const next = current.filter(u=>u.code!==target);
   if(window.FIREBASE_ENABLED && window.firebaseHelpers?.deleteUser){
-    await window.firebaseHelpers.deleteUser(target);
-    const remote = await window.firebaseHelpers.getUsers();
-    saveLocalUsers(remote);
-    return;
+    try{
+      await window.firebaseHelpers.deleteUser(target);
+      const remote = await window.firebaseHelpers.getUsers();
+      saveLocalUsers(remote);
+      return { __removed:true };
+    }catch(err){
+      if(!isPermissionDeniedError(err)) throw err;
+      saveLocalUsers(next);
+      return { __removed:true, __localOnly:true };
+    }
   }
   saveLocalUsers(next);
+  return { __removed:true };
 }
 function roleLabel(role){
   if(role==='fo') return 'FO';
