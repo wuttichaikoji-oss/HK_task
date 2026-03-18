@@ -197,3 +197,10 @@ dialog .body{padding:20px}
 .log-chevron{font-size:18px;color:var(--accent-2)}
 .log-content{padding:0 14px 14px 14px;border-top:1px solid var(--line)}
 .log-content.hidden{display:none}
+
+.token-panel{margin-top:18px}
+.token-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.token-grid{grid-template-columns:1fr}}
+.token-box{background:linear-gradient(180deg,#17171c,#1d1d24);border:1px solid var(--line);border-radius:14px;padding:14px}
+.token-row{padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}
+.token-row:first-child{border-top:0;padding-top:0}

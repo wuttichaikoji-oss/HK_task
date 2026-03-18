@@ -42,6 +42,11 @@ window.firebaseHelpers = null;
         const unsub2 = fsMod.onSnapshot(fsMod.query(logsCol), async ()=>{ onChange(await this.getData()); });
         return ()=>{unsub1();unsub2();};
       },
+      async listDeviceTokens(){
+        const snap = await fsMod.getDocs(fsMod.query(fsMod.collection(db, tokenCol)));
+        return snap.docs.map(doc => ({id:doc.id, ...doc.data()}))
+          .sort((a,b)=> new Date(b.updatedAt||0) - new Date(a.updatedAt||0));
+      },
       async registerDeviceToken(session){
         if(!messaging) throw new Error("Messaging unavailable");
         if(!window.FIREBASE_VAPID_KEY || window.FIREBASE_VAPID_KEY === 'REPLACE_ME') throw new Error("ยังไม่ได้ใส่ VAPID key");

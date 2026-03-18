@@ -185,3 +185,25 @@ async function enableNotificationsForCurrentUser(session, elId){
     alert('เปิดแจ้งเตือนไม่สำเร็จ: ' + (err?.message || 'unknown'));
   }
 }
+
+async function loadTokenStatus(){
+  if(!isFirebaseReady() || !window.firebaseHelpers?.listDeviceTokens){
+    return {ok:false, tokens:[], hk:[], fo:[], supervisor:[]};
+  }
+  try{
+    const tokens = await window.firebaseHelpers.listDeviceTokens();
+    return {
+      ok:true,
+      tokens,
+      hk: tokens.filter(t => (t.role||'') === 'hk' && t.enabled !== false),
+      fo: tokens.filter(t => (t.role||'') === 'fo' && t.enabled !== false),
+      supervisor: tokens.filter(t => (t.role||'') === 'supervisor' && t.enabled !== false),
+    };
+  }catch(err){
+    return {ok:false, error: err?.message || 'โหลด token ไม่สำเร็จ', tokens:[], hk:[], fo:[], supervisor:[]};
+  }
+}
+function renderTokenRows(tokens){
+  if(!tokens?.length) return '<div class="small">ยังไม่มีเครื่องที่ลงทะเบียน</div>';
+  return tokens.map((t, i)=>`<div class="token-row"><div><strong>${escapeHtml(t.userName||'ไม่ระบุชื่อ')}</strong> <span class="small">(${escapeHtml(t.role||'-')})</span></div><div class="small">${escapeHtml(t.userAgent||'-')}</div><div class="small">อัปเดตล่าสุด: ${fmtDate(t.updatedAt)}</div></div>`).join('');
+}
