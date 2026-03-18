@@ -15,3 +15,5 @@ window.FIREBASE_ENABLED = (
   window.FIREBASE_CONFIG &&
   window.FIREBASE_CONFIG.projectId
 );
+
+window.FIREBASE_USERS_COLLECTION = "hk_users_v1";

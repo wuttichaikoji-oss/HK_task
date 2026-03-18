@@ -1,5 +1,5 @@
 
-const STORAGE_KEY='hk_tasks_v1_9', SESSION_KEY='hk_session_v1_9';
+const STORAGE_KEY='hk_tasks_v1_9', SESSION_KEY='hk_session_v1_9', USER_STORAGE_KEY='hk_users_v2_0_3';
 const STATUSES=['New from FO','In Progress','Done by HK'];
 const ACTIVE_STATUSES = new Set(STATUSES);
 const USERS=window.APP_USERS||[];
@@ -7,16 +7,130 @@ const fmtDate=d=>d?new Date(d).toLocaleString('th-TH'):'-';
 const uid=()=>Math.random().toString(36).slice(2,10);
 const nowIsoLocal=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
 function escapeHtml(str){return String(str??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+
+function cloneData(v){return JSON.parse(JSON.stringify(v));}
+function defaultUsers(){return cloneData(window.APP_DEFAULT_USERS||[]);}
+function normalizeUser(user){
+  const role = ['fo','hk','supervisor'].includes(String(user?.role||'')) ? String(user.role) : 'hk';
+  const department = user?.department || (role==='fo' ? 'Front Office' : role==='supervisor' ? 'Management' : 'HouseKeeping');
+  return {
+    code: String(user?.code||'').trim(),
+    name: String(user?.name||'').trim(),
+    role,
+    department,
+    position: String(user?.position||department).trim()
+  };
+}
+function setUsersInMemory(users){
+  window.APP_USERS ||= [];
+  window.APP_USERS.splice(0, window.APP_USERS.length, ...(users||[]).map(normalizeUser).filter(u=>u.code && u.name));
+  window.USERS = window.APP_USERS;
+  return window.APP_USERS;
+}
+function loadLocalUsers(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(USER_STORAGE_KEY)||'[]');
+    if(Array.isArray(raw) && raw.length) return setUsersInMemory(raw);
+  }catch{}
+  const defaults = defaultUsers();
+  saveLocalUsers(defaults);
+  return defaults;
+}
+function saveLocalUsers(users){
+  const normalized = (users||[]).map(normalizeUser).filter(u=>u.code && u.name);
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalized));
+  return setUsersInMemory(normalized);
+}
+function getUsersSnapshot(){
+  if(!Array.isArray(window.APP_USERS) || !window.APP_USERS.length) return loadLocalUsers();
+  return window.APP_USERS;
+}
+function findUserByCode(code){
+  return getUsersSnapshot().find(x=>x.code===String(code).trim());
+}
+function usersByRole(role){
+  return getUsersSnapshot().filter(u=>u.role===role);
+}
+async function waitForFirebaseUsersHelper(maxTries=25){
+  let tries=0;
+  while(window.FIREBASE_ENABLED && (!window.firebaseHelpers || !window.firebaseHelpers.getUsers) && tries<maxTries){
+    await new Promise(r=>setTimeout(r,200));
+    tries++;
+  }
+}
+async function ensureUsersReady(force=false){
+  if(window.__usersReadyPromise && !force) return window.__usersReadyPromise;
+  window.__usersReadyPromise = (async()=>{
+    loadLocalUsers();
+    await waitForFirebaseUsersHelper();
+    if(window.FIREBASE_ENABLED && window.firebaseHelpers?.getUsers){
+      const remote = await window.firebaseHelpers.getUsers();
+      if(remote.length){
+        saveLocalUsers(remote);
+        return getUsersSnapshot();
+      }
+      const defaults = defaultUsers();
+      for(const user of defaults){ await window.firebaseHelpers.upsertUser(user); }
+      saveLocalUsers(defaults);
+      return getUsersSnapshot();
+    }
+    if(!getUsersSnapshot().length){
+      saveLocalUsers(defaultUsers());
+    }
+    return getUsersSnapshot();
+  })();
+  return window.__usersReadyPromise;
+}
+async function createOrUpdateUser(user){
+  const normalized = normalizeUser(user);
+  if(!normalized.code || !normalized.name) throw new Error('กรุณากรอก ID และชื่อพนักงาน');
+  const current = [...getUsersSnapshot()];
+  const idx = current.findIndex(u=>u.code===normalized.code);
+  if(idx>=0) current[idx] = normalized; else current.push(normalized);
+  current.sort((a,b)=>{
+    const order={fo:0,supervisor:1,hk:2};
+    return (order[a.role]??9)-(order[b.role]??9) || a.code.localeCompare(b.code,'en');
+  });
+  if(window.FIREBASE_ENABLED && window.firebaseHelpers?.upsertUser){
+    await window.firebaseHelpers.upsertUser(normalized);
+    const remote = await window.firebaseHelpers.getUsers();
+    saveLocalUsers(remote);
+    return normalized;
+  }
+  saveLocalUsers(current);
+  return normalized;
+}
+async function removeUser(code){
+  const target = String(code||'').trim();
+  if(!target) return;
+  const current = [...getUsersSnapshot()];
+  const targetUser = current.find(u=>u.code===target);
+  if(targetUser?.role==='fo') throw new Error('FO หลักถูกล็อกไว้ ไม่สามารถลบได้');
+  if(targetUser?.role==='supervisor' && current.filter(u=>u.role==='supervisor').length<=1) throw new Error('ต้องมี Supervisor อย่างน้อย 1 ID');
+  const next = current.filter(u=>u.code!==target);
+  if(window.FIREBASE_ENABLED && window.firebaseHelpers?.deleteUser){
+    await window.firebaseHelpers.deleteUser(target);
+    const remote = await window.firebaseHelpers.getUsers();
+    saveLocalUsers(remote);
+    return;
+  }
+  saveLocalUsers(next);
+}
+function roleLabel(role){
+  if(role==='fo') return 'FO';
+  if(role==='supervisor') return 'Supervisor';
+  return 'HK';
+}
 function loadSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}}
 function saveSession(s){localStorage.setItem(SESSION_KEY,JSON.stringify(s))}
 function logout(){localStorage.removeItem(SESSION_KEY);location.href='index.html';}
 function login(code){
-  const u=USERS.find(x=>x.code===String(code).trim());
+  const u=findUserByCode(code);
   if(!u)return false;
-  saveSession({name:u.name,role:u.role,code:u.code,department:u.department||'',loginAt:new Date().toISOString()});
+  saveSession({name:u.name,role:u.role,code:u.code,department:u.department||'',position:u.position||'',loginAt:new Date().toISOString()});
   if(u.role==='fo') location.href='fo.html';
   else if(u.role==='hk') location.href='hk.html';
-  else location.href='board.html';
+  else location.href='supervisor.html';
   return true;
 }
 function requireRole(roles){
@@ -26,7 +140,7 @@ function requireRole(roles){
   if(roles && !allowed.includes(s.role)){
     if(s.role==='fo') location.href='fo.html';
     else if(s.role==='hk') location.href='hk.html';
-    else location.href='board.html';
+    else location.href='supervisor.html';
     throw new Error('Wrong role');
   }
   return s;
@@ -126,19 +240,19 @@ async function seedData(force=false){
   const current=await getData();
   if((current.tasks||[]).length&&!force)return;
   const demoTasks=[
-    { title:'Room Ready ด่วน', outlet:'Hotel', roomNumber:'A105', room:'A105', desc:'แขก Early Check-in จะมาถึงภายใน 20 นาที', department:'Front Office', taskType:'Room Ready', requestedBy:'FO A', assignee:'HK A', priority:'Urgent', dueAt:nowIsoLocal(), roomStatus:'Vacant Dirty', status:'In Progress', images:[], comments:[{at:new Date().toISOString(),by:'FO A',text:'FO เปิดงานตัวอย่าง'},{at:new Date().toISOString(),by:'HK A',text:'เริ่มดำเนินการแล้ว'}], createdBy:'FO A', createdAt:new Date().toISOString(), pushEnabled:true, startedAt:new Date().toISOString() },
-    { title:'ส่งผ้าเช็ดตัวเพิ่ม', outlet:'Hotel', roomNumber:'D308', room:'D308', desc:'แขกขอผ้าเพิ่ม 2 ผืน', department:'Front Office', taskType:'Guest Request', requestedBy:'FO B', assignee:'HK B', priority:'High', dueAt:nowIsoLocal(), roomStatus:'Occupied', status:'In Progress', images:[], comments:[{at:new Date().toISOString(),by:'FO B',text:'FO เปิดงานตัวอย่าง'}], createdBy:'FO B', createdAt:new Date().toISOString(), pushEnabled:true, startedAt:new Date().toISOString() },
-    { title:'อัปเดตห้องพร้อมขาย', outlet:'Hotel', roomNumber:'C212', room:'C212', desc:'HK แจ้งว่าแม่บ้านทำเสร็จแล้ว รอ FO ปิดงาน', department:'Front Office', taskType:'Room Status Update', requestedBy:'FO A', assignee:'HK A', priority:'Medium', dueAt:nowIsoLocal(), roomStatus:'Vacant Clean', status:'Done by HK', images:[], comments:[{at:new Date().toISOString(),by:'HK A',text:'ทำเสร็จแล้ว'}], createdBy:'FO A', createdAt:new Date().toISOString(), pushEnabled:true, startedAt:new Date().toISOString(), doneAt:new Date().toISOString() },
-    { title:'ทำความสะอาดห้องด่วน', outlet:'Hotel', roomNumber:'A103', room:'A103', desc:'แขกกำลังจะ check-in', department:'Front Office', taskType:'Room Ready', requestedBy:'FO A', assignee:'HK AAAA', priority:'High', dueAt:nowIsoLocal(), roomStatus:'Vacant Dirty', status:'New from FO', images:[], comments:[{at:new Date().toISOString(),by:'FO A',text:'เปิดงานใหม่'}], createdBy:'FO A', createdAt:new Date().toISOString(), pushEnabled:true }
+    { title:'Room Ready ด่วน', outlet:'Hotel', roomNumber:'A105', room:'A105', desc:'แขก Early Check-in จะมาถึงภายใน 20 นาที', department:'Front Office', taskType:'Room Ready', requestedBy:'FO Main', assignee:'HK Team', priority:'Urgent', dueAt:nowIsoLocal(), roomStatus:'Vacant Dirty', status:'In Progress', images:[], comments:[{at:new Date().toISOString(),by:'FO Main',text:'FO เปิดงานตัวอย่าง'},{at:new Date().toISOString(),by:'HK Team',text:'เริ่มดำเนินการแล้ว'}], createdBy:'FO Main', createdAt:new Date().toISOString(), pushEnabled:true, startedAt:new Date().toISOString() },
+    { title:'ส่งผ้าเช็ดตัวเพิ่ม', outlet:'Hotel', roomNumber:'D308', room:'D308', desc:'แขกขอผ้าเพิ่ม 2 ผืน', department:'Front Office', taskType:'Guest Request', requestedBy:'FO Main', assignee:'HK Team', priority:'High', dueAt:nowIsoLocal(), roomStatus:'Occupied', status:'In Progress', images:[], comments:[{at:new Date().toISOString(),by:'FO Main',text:'FO เปิดงานตัวอย่าง'}], createdBy:'FO Main', createdAt:new Date().toISOString(), pushEnabled:true, startedAt:new Date().toISOString() },
+    { title:'อัปเดตห้องพร้อมขาย', outlet:'Hotel', roomNumber:'C212', room:'C212', desc:'HK แจ้งว่าแม่บ้านทำเสร็จแล้ว รอ FO ปิดงาน', department:'Front Office', taskType:'Room Status Update', requestedBy:'FO Main', assignee:'HK Team', priority:'Medium', dueAt:nowIsoLocal(), roomStatus:'Vacant Clean', status:'Done by HK', images:[], comments:[{at:new Date().toISOString(),by:'HK Team',text:'ทำเสร็จแล้ว'}], createdBy:'FO Main', createdAt:new Date().toISOString(), pushEnabled:true, startedAt:new Date().toISOString(), doneAt:new Date().toISOString() },
+    { title:'ทำความสะอาดห้องด่วน', outlet:'Hotel', roomNumber:'A103', room:'A103', desc:'แขกกำลังจะ check-in', department:'Front Office', taskType:'Room Ready', requestedBy:'FO Main', assignee:'', priority:'High', dueAt:nowIsoLocal(), roomStatus:'Vacant Dirty', status:'New from FO', images:[], comments:[{at:new Date().toISOString(),by:'FO Main',text:'เปิดงานใหม่'}], createdBy:'FO Main', createdAt:new Date().toISOString(), pushEnabled:true }
   ].map(t=>({id:uid(),...t}));
   const demoLog=[{
     id: uid(), title:'งานตัวอย่างปิดแล้ว', outlet:'Hotel', roomNumber:'B201', room:'B201',
-    desc:'งานนี้ถูกปิดและย้ายเข้า log แล้ว', taskType:'Guest Request', requestedBy:'FO B', assignee:'HK B',
+    desc:'งานนี้ถูกปิดและย้ายเข้า log แล้ว', taskType:'Guest Request', requestedBy:'FO Main', assignee:'HK Team',
     priority:'Medium', createdAt:new Date(Date.now()-3600_000).toISOString(),
     startedAt:new Date(Date.now()-3000_000).toISOString(),
     doneAt:new Date(Date.now()-1800_000).toISOString(),
     closedAt:new Date(Date.now()-900_000).toISOString(),
-    closedByFO:'FO B', lifecycleStatus:'Closed by FO', totalMinutes:45, comments:[]
+    closedByFO:'FO Main', lifecycleStatus:'Closed by FO', totalMinutes:45, comments:[]
   }];
   await saveData({tasks:demoTasks, logs:demoLog});
 }

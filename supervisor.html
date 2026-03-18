@@ -2,7 +2,37 @@
 <header><div class="wrap row space"><div class="brand"><div class="brand-logo-wrap"><img class="brand-logo" src="assets/laya-logo.png" alt="Laya Resort Phuket"></div><div class="brand-copy"><div class="brand-sub">Laya Resort Phuket</div><div class="top-title">SUPERVISOR</div><div id="welcome" class="small"></div></div></div><div class="row"><a href="board.html" class="ghost">บอร์ดรวม</a><a href="log.html" class="ghost">LOG / Report</a><a href="fo.html" class="ghost">หน้า FO</a><a href="hk.html" class="ghost">หน้า HK</a><button class="ghost" id="enablePushBtn">เปิดแจ้งเตือน</button><button class="ghost" id="logoutBtn">ออกจากระบบ</button></div></div></header>
 <div class="wrap">
   <div id="firebaseStatus" class="firebase-inline" style="margin-bottom:14px;"></div>
-  <div class="panel"><h2 class="section-title">ภาพรวมระบบ</h2><div id="allTasks"></div></div>
+  <div class="panel"><div class="section-head"><div><h2 class="section-title">ภาพรวมระบบ</h2><div class="small">สำหรับ Supervisor ใช้ดูภาพรวมและจัดการรหัสพนักงาน</div></div><a href="#userForm" class="good cta-link">+ สร้าง ID พนักงานใหม่</a></div><div id="allTasks"></div></div>
+
+  <div class="panel user-admin-panel">
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">จัดการรหัสพนักงาน</h2><div class="notice create-user-notice">กดปุ่ม <b>สร้าง ID พนักงานใหม่</b> ด้านล่างเพื่อเพิ่มรหัสพนักงาน HK หรือ Supervisor</div>
+        <div class="small">ระบบตั้งต้นมี FO 1 ID และ Supervisor 2 ID แล้ว ส่วน Supervisor สามารถสร้างรหัสใหม่สำหรับ HK หรือ Supervisor เพิ่มได้</div>
+      </div>
+    </div>
+    <div class="notice" style="margin-bottom:14px;">FO หลักถูกล็อกไว้ 1 ID เพื่อให้หน้าเปิดงานใช้ชุดเดียว ส่วนรหัสพนักงานใหม่ให้สร้างจากส่วนนี้ได้เลย เช่น 2001, 2002 หรือรหัสตามที่หน่อยต้องการ</div>
+    <div class="user-admin-grid">
+      <form id="userForm" class="ops-form-card compact-grid highlight-create-form">
+        <div class="grid grid-2 compact-grid">
+          <div><label>ID พนักงาน</label><input id="userCode" placeholder="เช่น 2001"></div>
+          <div><label>ชื่อพนักงาน</label><input id="userName" placeholder="เช่น Noi / Somchai"></div>
+        </div>
+        <div class="grid grid-2 compact-grid">
+          <div><label>ตำแหน่ง</label><input id="userPosition" placeholder="เช่น Room Attendant / Supervisor"></div>
+          <div><label>ระดับผู้ใช้</label><select id="userRole"><option value="hk">พนักงานปฏิบัติงาน (HK)</option><option value="supervisor">Supervisor</option></select></div>
+        </div>
+        <div class="actions"><button class="good big-action" type="submit">สร้าง ID พนักงานใหม่</button></div>
+      </form>
+      <div class="ops-form-card">
+        <div class="section-head" style="margin-bottom:10px;">
+          <h3 class="section-title" style="font-size:16px;margin:0;">รายการรหัสที่เปิดใช้งาน</h3>
+          <div class="small" id="userCountText">0 IDs</div>
+        </div>
+        <div id="userList" class="user-list"></div>
+      </div>
+    </div>
+  </div>
 
   <div class="panel token-panel">
     <div class="section-head">
@@ -59,12 +89,60 @@ async function renderTokens(){
 }
 document.getElementById('refreshTokensBtn').onclick = renderTokens;
 
+function userCard(u){
+  const canDelete = u.role !== 'fo';
+  return `<div class="user-card">
+    <div>
+      <div class="user-card-title">${escapeHtml(u.name)} <span class="code">${escapeHtml(u.code)}</span></div>
+      <div class="small">${escapeHtml(roleLabel(u.role))} • ${escapeHtml(u.position||u.department||'-')}</div>
+    </div>
+    <div class="actions" style="margin-top:0;">
+      <span class="badge ${u.role==='supervisor'?'status-progress':u.role==='fo'?'status-new':'status-done'}">${escapeHtml(roleLabel(u.role))}</span>
+      ${canDelete ? `<button class="bad" onclick="removeStaffCode('${u.code}')">ลบ</button>` : `<span class="small">FO หลัก</span>`}
+    </div>
+  </div>`;
+}
+async function renderUsers(){
+  await ensureUsersReady(true);
+  const users = getUsersSnapshot();
+  document.getElementById('userCountText').textContent = users.length + ' IDs';
+  document.getElementById('userList').innerHTML = users.map(userCard).join('') || '<div class="small">ยังไม่มีรหัสพนักงาน</div>';
+}
+window.removeStaffCode = async function(code){
+  if(!confirm('ลบรหัส ' + code + ' ใช่หรือไม่')) return;
+  try{
+    await removeUser(code);
+    await renderUsers();
+    alert('ลบรหัสเรียบร้อย');
+  }catch(err){
+    alert(err?.message || 'ลบรหัสไม่สำเร็จ');
+  }
+};
+document.getElementById('userForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const code = document.getElementById('userCode').value.trim();
+  const name = document.getElementById('userName').value.trim();
+  const position = document.getElementById('userPosition').value.trim();
+  const role = document.getElementById('userRole').value;
+  try{
+    await createOrUpdateUser({code,name,position,role,department: role==='supervisor' ? 'Management' : 'HouseKeeping'});
+    document.getElementById('userForm').reset();
+    document.getElementById('userRole').value = 'hk';
+    await renderUsers();
+    alert('บันทึกรหัสพนักงานเรียบร้อย');
+  }catch(err){
+    alert(err?.message || 'บันทึกรหัสไม่สำเร็จ');
+  }
+});
+
 (async()=>{
   setFirebaseStatus('firebaseStatus','checking');
   const fb = await checkFirebaseConnection();
   if(fb.ok) setFirebaseStatus('firebaseStatus','connected', fb.detail); else setFirebaseStatus('firebaseStatus', fb.mode, fb.detail);
+  await ensureUsersReady();
   await seedData();
   await render();
+  await renderUsers();
   await renderTokens();
   if(isFirebaseReady()){
     const wait=setInterval(()=>{if(window.firebaseHelpers?.subscribe){clearInterval(wait);window.firebaseHelpers.subscribe(async(data)=>{await render(data); await renderTokens(); const fb2=await checkFirebaseConnection(); if(fb2.ok) setFirebaseStatus('firebaseStatus','connected', fb2.detail);})}},500);

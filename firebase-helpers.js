@@ -10,6 +10,8 @@ window.firebaseHelpers = null;
     const tasksCol = fsMod.collection(db, window.FIREBASE_TASKS_COLLECTION || "hk_tasks_v19");
     const logsCol = fsMod.collection(db, window.FIREBASE_LOGS_COLLECTION || "hk_logs_v19");
     const tokenCol = window.FIREBASE_DEVICE_TOKENS_COLLECTION || "device_tokens";
+    const usersColName = window.FIREBASE_USERS_COLLECTION || "hk_users_v1";
+    const usersCol = fsMod.collection(db, usersColName);
     let messaging = null; try { messaging = msgMod.getMessaging(app); } catch (e) {}
     window.firebaseHelpers = {
       async getData(){
@@ -41,6 +43,28 @@ window.firebaseHelpers = null;
         const unsub1 = fsMod.onSnapshot(fsMod.query(tasksCol), async ()=>{ onChange(await this.getData()); });
         const unsub2 = fsMod.onSnapshot(fsMod.query(logsCol), async ()=>{ onChange(await this.getData()); });
         return ()=>{unsub1();unsub2();};
+      },
+
+      async getUsers(){
+        const snap = await fsMod.getDocs(fsMod.query(usersCol));
+        return snap.docs.map(doc=>({code:doc.id, ...doc.data()}))
+          .filter(u=>u.code && u.name)
+          .sort((a,b)=>{
+            const order={fo:0,supervisor:1,hk:2};
+            return (order[a.role]??9)-(order[b.role]??9) || String(a.code).localeCompare(String(b.code),'en');
+          });
+      },
+      async upsertUser(user){
+        const code = String(user?.code||'').trim();
+        if(!code) throw new Error('missing user code');
+        const payload = {...user, code, updatedAt:new Date().toISOString()};
+        await fsMod.setDoc(fsMod.doc(db, usersColName, code), payload);
+        return payload;
+      },
+      async deleteUser(code){
+        const id = String(code||'').trim();
+        if(!id) return;
+        await fsMod.deleteDoc(fsMod.doc(db, usersColName, id));
       },
       async listDeviceTokens(){
         const snap = await fsMod.getDocs(fsMod.query(fsMod.collection(db, tokenCol)));

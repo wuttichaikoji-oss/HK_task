@@ -29,11 +29,10 @@
   - งานเร่งด่วนที่ปิดแล้ว
 
 ## รหัสทดลอง
-- FO A = 1001
-- FO B = 1002
-- HK A = 2001
-- HK B = 2002
-- Supervisor = 9000
+- FO Main = 1101
+- Supervisor 1 = 9101
+- Supervisor 2 = 9102
+- HK IDs สร้างเพิ่มได้จากหน้า Supervisor
 
 ## หมายเหตุ
 - ถ้ายังไม่เชื่อม Firebase ระบบจะใช้ Local Demo Mode
