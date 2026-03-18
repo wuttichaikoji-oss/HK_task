@@ -63,23 +63,34 @@ async function ensureUsersReady(force=false){
   window.__usersReadyPromise = (async()=>{
     loadLocalUsers();
     await waitForFirebaseUsersHelper();
-    if(window.FIREBASE_ENABLED && window.firebaseHelpers?.getUsers){
-      const remote = await window.firebaseHelpers.getUsers();
-      if(remote.length){
-        saveLocalUsers(remote);
+    try{
+      if(window.FIREBASE_ENABLED && window.firebaseHelpers?.getUsers){
+        const remote = await window.firebaseHelpers.getUsers();
+        if(remote.length){
+          saveLocalUsers(remote);
+          return getUsersSnapshot();
+        }
+        const defaults = defaultUsers();
+        for(const user of defaults){ await window.firebaseHelpers.upsertUser(user); }
+        saveLocalUsers(defaults);
         return getUsersSnapshot();
       }
-      const defaults = defaultUsers();
-      for(const user of defaults){ await window.firebaseHelpers.upsertUser(user); }
-      saveLocalUsers(defaults);
-      return getUsersSnapshot();
+    }catch(err){
+      console.warn('ensureUsersReady fallback to local users:', err);
     }
     if(!getUsersSnapshot().length){
       saveLocalUsers(defaultUsers());
     }
     return getUsersSnapshot();
   })();
-  return window.__usersReadyPromise;
+  try{
+    return await window.__usersReadyPromise;
+  }catch(err){
+    console.warn('ensureUsersReady recovered from error:', err);
+    window.__usersReadyPromise = null;
+    if(!getUsersSnapshot().length) saveLocalUsers(defaultUsers());
+    return getUsersSnapshot();
+  }
 }
 async function createOrUpdateUser(user){
   const normalized = normalizeUser(user);
@@ -461,3 +472,13 @@ function vibrateStatusUpdate(){
     if(navigator.vibrate) navigator.vibrate([200,100,200]);
   }catch(e){}
 }
+
+
+window.createOrUpdateUser = createOrUpdateUser;
+window.removeUser = removeUser;
+window.ensureUsersReady = ensureUsersReady;
+window.getUsersSnapshot = getUsersSnapshot;
+window.findUserByCode = findUserByCode;
+window.usersByRole = usersByRole;
+window.roleLabel = roleLabel;
+

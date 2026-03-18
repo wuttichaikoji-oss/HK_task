@@ -11,8 +11,17 @@
   else setFirebaseStatus('firebaseStatus', fb.mode, fb.detail);
 })();
 
-(async()=>{await ensureUsersReady();await seedData();document.getElementById('demoUsers').innerHTML=getUsersSnapshot().map(u=>`${u.name} = ${u.code} (${u.role})`).join('<br>');document.getElementById('logoutBtn').onclick=logout;})();
+(async()=>{
+  try{ await ensureUsersReady(); }catch(err){ console.warn('load users failed', err); }
+  try{ await seedData(); }catch(err){ console.warn('seed data skipped', err); }
+  document.getElementById('demoUsers').innerHTML=getUsersSnapshot().map(u=>`${u.name} = ${u.code} (${u.role})`).join('<br>');
+  document.getElementById('logoutBtn').onclick=logout;
+})();
 (async()=>{ const d = await runNotificationDiagnostics(); document.getElementById('notifyDiag').innerHTML = diagnosticsHTML(d); })();
-document.getElementById('loginBtn').onclick=async()=>{await ensureUsersReady();const ok=login(document.getElementById('code').value);if(!ok)alert('รหัสไม่ถูกต้อง');};
+document.getElementById('loginBtn').onclick=async()=>{
+  try{ await ensureUsersReady(); }catch(err){ console.warn('login fallback to local users', err); }
+  const ok=login(document.getElementById('code').value);
+  if(!ok) alert('รหัสไม่ถูกต้อง');
+};
 document.getElementById('code').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});
 </script></body></html>
