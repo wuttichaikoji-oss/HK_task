@@ -207,3 +207,9 @@ function renderTokenRows(tokens){
   if(!tokens?.length) return '<div class="small">ยังไม่มีเครื่องที่ลงทะเบียน</div>';
   return tokens.map((t, i)=>`<div class="token-row"><div><strong>${escapeHtml(t.userName||'ไม่ระบุชื่อ')}</strong> <span class="small">(${escapeHtml(t.role||'-')})</span></div><div class="small">${escapeHtml(t.userAgent||'-')}</div><div class="small">อัปเดตล่าสุด: ${fmtDate(t.updatedAt)}</div></div>`).join('');
 }
+
+function forceHKOnly(session){
+  if(session.role !== 'hk'){
+    window.location.href = 'hk.html';
+  }
+}
