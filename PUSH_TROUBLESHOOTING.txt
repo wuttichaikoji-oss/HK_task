@@ -14,3 +14,8 @@
 - ใช้ Service Worker syntax แบบเก่าเพื่อกัน evaluation failed
 - ใช้ path `/HK_task/firebase-messaging-sw.js` ให้ตรงกับ GitHub Pages
 - เพิ่ม diagnostics บนหน้า login
+
+
+v2.0.6.4:
+- ถ้ายัง register ไม่ผ่าน ให้ล้าง site data แล้วปิดทุกแท็บของเว็บก่อนเปิดใหม่
+- เวอร์ชันนี้ตั้งใจทำ service worker ให้เล็กที่สุด เพื่อเช็กว่า browser รับ registration ผ่านหรือไม่

@@ -132,3 +132,10 @@
 - เปลี่ยน path register ให้ตรงกับ GitHub Pages ที่อยู่ใต้ `/HK_task/`
 - เพิ่ม diagnostics สำหรับ notification บนหน้า login
 - เพิ่มไฟล์ `PUSH_TROUBLESHOOTING.txt`
+
+
+## อัปเดต v2.0.6.4
+- ลด `firebase-messaging-sw.js` ให้เหลือ minimal ที่สุดเพื่อให้ register ผ่านง่ายขึ้น
+- ใช้ Firebase compat เวอร์ชัน 9.22.2 ใน service worker
+- ตัด `onBackgroundMessage` ออกชั่วคราว เพื่อโฟกัสให้เปิดแจ้งเตือนผ่านก่อน
+- ยังคงใช้ path `/HK_task/firebase-messaging-sw.js`
