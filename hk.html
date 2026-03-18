@@ -9,6 +9,7 @@
     </div>
     <div id="hkTasks"></div>
   </div>
+
   <div class="panel"><div class="section-head"><h2 class="section-title">อัปเดตงาน</h2></div>
     <form id="submitForm" class="grid">
       <div><label>เลือกงาน</label><select id="taskId"></select></div>
@@ -19,53 +20,142 @@
     </form>
   </div>
 </div>
+
 <dialog id="taskDialog"><div class="body"><div id="taskDetail"></div><div class="actions"><button class="ghost" onclick="document.getElementById('taskDialog').close()">ปิด</button></div></div></dialog>
+
 <script src="firebase-config.js"></script><script src="users-config.js"></script><script src="firebase-helpers.js"></script><script src="common.js"></script>
 <script>
 const session=requireRole('hk');
 document.getElementById('welcome').textContent='ผู้ใช้งาน: '+session.name;
 document.getElementById('logoutBtn').onclick=logout;
 document.getElementById('enablePushBtn').onclick=()=>enableNotificationsForCurrentUser(session,'firebaseStatus');
-async function visibleTasks(dataOverride){const data=dataOverride||await getData(); return (data.tasks||[]).filter(t=>!t.assignee || t.assignee===session.name || t.status==='New from FO');}
-function taskButtons(t){
-  const canStart = t.status === 'New from FO';
-  const canDone = t.status === 'In Progress';
-  return `<div class="actions"><button onclick="openTask('${t.id}')">ดู</button><button class="good" ${canStart?'':'disabled'} onclick="quickStart('${t.id}')">In Progress</button><button class="warn" ${canDone?'':'disabled'} onclick="quickDone('${t.id}')">Done by HK</button></div>`;
+
+const uploadState = {};
+
+async function visibleTasks(dataOverride){
+  const data=dataOverride||await getData();
+  return (data.tasks||[]).filter(t=>!t.assignee || t.assignee===session.name || t.status==='New from FO' || t.status==='In Progress' || t.status==='Done by HK');
 }
+
+function taskButtons(t){
+  const status = normalizeStatus(t.status);
+  if(status === 'New from FO'){
+    return `<div class="actions">
+      <button onclick="openTask('${t.id}')">ดูรายละเอียด</button>
+      <button class="good" onclick="quickStart('${t.id}')">เริ่มทำงาน</button>
+    </div>`;
+  }
+  if(status === 'In Progress'){
+    const staged = !!uploadState[t.id];
+    return `<div class="actions">
+      <button onclick="openTask('${t.id}')">ดูรายละเอียด</button>
+      ${!staged ? `<button class="warn" onclick="showUploadForDone('${t.id}')">ทำงานเสร็จแล้ว</button>` : ``}
+      <input id="upload-${t.id}" type="file" accept="image/*" multiple style="${staged ? 'display:block;max-width:220px;' : 'display:none;'}">
+      <button id="send-${t.id}" class="good" onclick="sendToDone('${t.id}')" style="${staged ? 'display:inline-block;' : 'display:none;'}">ส่งงาน</button>
+    </div>`;
+  }
+  return `<div class="actions"><button onclick="openTask('${t.id}')">ดูรายละเอียด</button></div>`;
+}
+
 async function render(dataOverride){
   const data=dataOverride||await getData();
   const tasks=await visibleTasks(data);
+
   document.getElementById('kNew').textContent = tasks.filter(t=>t.status==='New from FO').length;
   document.getElementById('kProg').textContent = tasks.filter(t=>t.status==='In Progress').length;
   document.getElementById('kDone').textContent = tasks.filter(t=>t.status==='Done by HK').length;
-  document.getElementById('hkTasks').innerHTML = tasks.map(t=>`<article class="task ${t.status==='Done by HK'?'disabled-action':''}"><h4>${escapeHtml(t.title)}</h4><div class="meta">${escapeHtml(taskLocationText(t))}</div><div class="meta">FO: ${escapeHtml(t.requestedBy||'-')} • สถานะ: ${escapeHtml(t.status)}</div><div class="badges">${statusBadge(t)}</div>${taskButtons(t)}</article>`).join('')||'<div class="small">ยังไม่มีงาน</div>';
+
+  document.getElementById('hkTasks').innerHTML = tasks.map(t=>`<article class="task ${t.status==='Done by HK'?'disabled-action':''}">
+    <h4>${escapeHtml(t.title)}</h4>
+    <div class="meta">${escapeHtml(taskLocationText(t))}</div>
+    <div class="meta">FO: ${escapeHtml(t.requestedBy||'-')} • สถานะ: ${escapeHtml(t.status)}</div>
+    <div class="badges">${statusBadge(t)}</div>
+    ${taskButtons(t)}
+  </article>`).join('')||'<div class="small">ยังไม่มีงาน</div>';
+
   const editable = tasks.filter(t=>['New from FO','In Progress'].includes(t.status));
   document.getElementById('taskId').innerHTML = editable.map(t=>`<option value="${t.id}">${escapeHtml(t.title)} (${escapeHtml(t.room||'-')})</option>`).join('');
   [...document.querySelectorAll('#submitForm input, #submitForm textarea, #submitForm select, #submitForm button')].forEach(el=>{ el.disabled = editable.length ? false : true; });
   document.getElementById('submitForm').style.opacity = editable.length ? '1' : '.65';
 }
+
 window.openTask=async id=>{await renderTaskDetail(id,'taskDetail','tasks');document.getElementById('taskDialog').showModal();};
-window.quickStart=async id=>{const tasks=await getTasks(); const t=tasks.find(x=>x.id===id); if(!t || t.status!=='New from FO') return; t.status='In Progress'; t.assignee=session.name; if(!t.startedAt) t.startedAt=new Date().toISOString(); t.comments||=[]; t.comments.unshift({at:new Date().toISOString(),by:session.name,text:'HK เริ่มดำเนินการ'}); await updateTask(t); await render();};
-window.quickDone=async id=>{const tasks=await getTasks(); const t=tasks.find(x=>x.id===id); if(!t || t.status!=='In Progress') return; t.status='Done by HK'; t.assignee=session.name; if(!t.startedAt) t.startedAt=new Date().toISOString(); t.doneAt=new Date().toISOString(); t.comments||=[]; t.comments.unshift({at:new Date().toISOString(),by:session.name,text:'HK ทำเสร็จแล้ว'}); await updateTask(t); await render();};
+
+window.quickStart=async id=>{
+  const tasks=await getTasks(); 
+  const t=tasks.find(x=>x.id===id); 
+  if(!t || t.status!=='New from FO') return;
+  t.status='In Progress'; 
+  t.assignee=session.name; 
+  if(!t.startedAt) t.startedAt=new Date().toISOString(); 
+  t.comments||=[]; 
+  t.comments.unshift({at:new Date().toISOString(),by:session.name,text:'HK เริ่มดำเนินการ'}); 
+  await updateTask(t); 
+  await render();
+};
+
+window.showUploadForDone = function(id){
+  uploadState[id] = true;
+  const input = document.getElementById('upload-' + id);
+  const btn = document.getElementById('send-' + id);
+  if(input) input.style.display = 'block';
+  if(btn) btn.style.display = 'inline-block';
+};
+
+window.sendToDone = async function(id){
+  const tasks=await getTasks(); 
+  const t=tasks.find(x=>x.id===id); 
+  if(!t || t.status!=='In Progress') return;
+
+  const input = document.getElementById('upload-' + id);
+  const imgs = input ? await readFiles(input.files) : [];
+  t.images ||= [];
+  if(imgs.length) t.images.unshift(...imgs);
+
+  t.status='Done by HK'; 
+  t.assignee=session.name; 
+  if(!t.startedAt) t.startedAt=new Date().toISOString(); 
+  t.doneAt=new Date().toISOString();
+  t.comments||=[]; 
+  t.comments.unshift({at:new Date().toISOString(),by:session.name,text: imgs.length ? 'HK ทำเสร็จแล้วและอัปโหลดรูปผลงาน' : 'HK ทำเสร็จแล้ว'});
+  await updateTask(t); 
+  delete uploadState[id];
+  await render();
+};
+
 document.getElementById('submitForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const id=document.getElementById('taskId').value; const tasks=await getTasks(); const t=tasks.find(x=>x.id===id); if(!t)return;
+  const id=document.getElementById('taskId').value; 
+  const tasks=await getTasks(); 
+  const t=tasks.find(x=>x.id===id); 
+  if(!t)return;
   const status=document.getElementById('status').value;
   if(t.status==='Done by HK') return;
   if(status==='In Progress' && t.status!=='New from FO') return;
   if(status==='Done by HK' && t.status!=='In Progress') return;
-  t.status=status; t.assignee=session.name;
+
+  t.status=status; 
+  t.assignee=session.name;
   if(status==='In Progress' && !t.startedAt) t.startedAt=new Date().toISOString();
   if(status==='Done by HK'){ if(!t.startedAt) t.startedAt=new Date().toISOString(); t.doneAt=new Date().toISOString(); }
-  t.images||=[]; const imgs=await readFiles(document.getElementById('images').files); t.images.unshift(...imgs);
-  const comment=document.getElementById('comment').value.trim(); t.comments||=[]; if(comment){t.comments.unshift({at:new Date().toISOString(),by:session.name,text:comment});}
-  await updateTask(t); document.getElementById('submitForm').reset(); await render(); alert('บันทึกเรียบร้อย');
+  t.images||=[]; 
+  const imgs=await readFiles(document.getElementById('images').files); 
+  t.images.unshift(...imgs);
+  const comment=document.getElementById('comment').value.trim(); 
+  t.comments||=[]; 
+  if(comment){t.comments.unshift({at:new Date().toISOString(),by:session.name,text:comment});}
+  await updateTask(t); 
+  document.getElementById('submitForm').reset(); 
+  await render(); 
+  alert('บันทึกเรียบร้อย');
 });
+
 (async()=>{
   setFirebaseStatus('firebaseStatus','checking');
   const fb = await checkFirebaseConnection();
   if(fb.ok) setFirebaseStatus('firebaseStatus','connected', fb.detail); else setFirebaseStatus('firebaseStatus', fb.mode, fb.detail);
-  await seedData(); await render();
+  await seedData(); 
+  await render();
   if(isFirebaseReady()){
     const wait=setInterval(()=>{if(window.firebaseHelpers?.subscribe){clearInterval(wait);window.firebaseHelpers.subscribe(async(data)=>{await render(data); const fb2=await checkFirebaseConnection(); if(fb2.ok) setFirebaseStatus('firebaseStatus','connected', fb2.detail);})}},500);
   }
