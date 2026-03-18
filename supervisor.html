@@ -34,6 +34,26 @@
     </div>
   </div>
 
+  <div class="panel task-admin-panel">
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">เปลี่ยนชื่อคนทำงาน / Assign คนทำงาน</h2>
+        <div class="small">Supervisor สามารถเลือกชื่อจากระบบเพื่อมอบหมายงานใหม่ หรือย้ายงานให้พนักงาน HK คนอื่นได้ทันที</div>
+      </div>
+      <button class="ghost" id="refreshTaskAdminBtn">รีเฟรชงาน</button>
+    </div>
+    <div class="row mobile-toolbar" style="margin-bottom:14px;">
+      <input id="taskAdminSearch" class="table-search" placeholder="ค้นหาห้อง / งาน / ผู้รับงาน / สถานะ">
+      <select id="taskAdminFilter" class="toolbar-select">
+        <option value="all">ทุกสถานะ</option>
+        <option value="New from FO">New from FO</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Done by HK">Done by HK</option>
+      </select>
+    </div>
+    <div id="taskAdminList" class="supervisor-task-list"></div>
+  </div>
+
   <div class="panel token-panel">
     <div class="section-head">
       <h2 class="section-title">สถานะอุปกรณ์ที่เปิดแจ้งเตือน</h2>
@@ -69,7 +89,9 @@ document.getElementById('logoutBtn').onclick=logout;
 document.getElementById('enablePushBtn').onclick=()=>enableNotificationsForCurrentUser(session,'firebaseStatus');
 
 async function render(dataOverride){
-  return dataOverride || await getData();
+  __taskAdminCache = dataOverride || await getData();
+  renderTaskAdmin(__taskAdminCache);
+  return __taskAdminCache;
 }
 async function renderTokens(){
   const info = await loadTokenStatus();
@@ -85,6 +107,7 @@ document.getElementById('refreshTokensBtn').onclick = renderTokens;
 
 function userCard(u){
   const canDelete = u.role !== 'fo';
+  const safeCode = JSON.stringify(u.code);
   return `<div class="user-card">
     <div>
       <div class="user-card-title">${escapeHtml(u.name)} <span class="code">${escapeHtml(u.code)}</span></div>
@@ -92,10 +115,76 @@ function userCard(u){
     </div>
     <div class="actions" style="margin-top:0;">
       <span class="badge ${u.role==='supervisor'?'status-progress':u.role==='fo'?'status-new':'status-done'}">${escapeHtml(roleLabel(u.role))}</span>
+      <button class="ghost" onclick='editStaffCode(${safeCode})'>แก้ไข</button>
       ${canDelete ? `<button class="bad" onclick="removeStaffCode('${u.code}')">ลบ</button>` : `<span class="small">FO หลัก</span>`}
     </div>
   </div>`;
 }
+let __taskAdminCache = null;
+function hkUsers(){ return getUsersSnapshot().filter(u=>u.role==='hk'); }
+function assignmentOptions(task){
+  const selected = String(task.assignee||'').trim();
+  const opts = hkUsers().map(u=>`<option value="${escapeHtml(u.name)}" ${selected===u.name?'selected':''}>${escapeHtml(u.name)} (${escapeHtml(u.code)})</option>`).join('');
+  return `<select id="taskAssign-${task.id}" class="toolbar-select task-assign-select"><option value="">ยังไม่ระบุ</option>${opts}</select>`;
+}
+function taskAdminRow(task){
+  return `<div class="supervisor-task-row">
+    <div>
+      <div class="user-card-title">${escapeHtml(task.room||'-')} • ${escapeHtml(task.title||'-')}</div>
+      <div class="small clamp-2">${escapeHtml(task.desc||'-')}</div>
+    </div>
+    <div>
+      <div class="small">ผู้รับงานปัจจุบัน</div>
+      <div class="task-current-assignee">${escapeHtml(task.assignee||'ยังไม่ระบุ')}</div>
+    </div>
+    <div>${statusBadge(task)}</div>
+    <div class="small">เปิด ${fmtDate(task.createdAt)}</div>
+    <div class="task-assign-box">${assignmentOptions(task)}</div>
+    <div class="actions" style="margin-top:0;justify-content:flex-end;">
+      <button class="secondary" onclick="applyTaskAssignment('${task.id}')">Assign จากระบบ</button>
+    </div>
+  </div>`;
+}
+function renderTaskAdmin(data){
+  const tasks = [...((data && data.tasks) || [])].filter(t=>['New from FO','In Progress','Done by HK'].includes(normalizeStatus(t.status))).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  const q = document.getElementById('taskAdminSearch').value.trim().toLowerCase();
+  const status = document.getElementById('taskAdminFilter').value;
+  const filtered = tasks.filter(t=>{
+    const matchQ = !q || [t.room,t.title,t.desc,t.assignee,t.requestedBy,t.status].some(v=>String(v||'').toLowerCase().includes(q));
+    const matchStatus = status==='all' || normalizeStatus(t.status)===status;
+    return matchQ && matchStatus;
+  });
+  document.getElementById('taskAdminList').innerHTML = filtered.map(taskAdminRow).join('') || '<div class="small">ยังไม่มีงานที่สามารถ Assign ได้</div>';
+}
+window.editStaffCode = function(code){
+  const u = findUserByCode(code);
+  if(!u) return;
+  document.getElementById('userCode').value = u.code || '';
+  document.getElementById('userName').value = u.name || '';
+  document.getElementById('userPosition').value = u.position || '';
+  document.getElementById('userRole').value = u.role || 'hk';
+  const btn = document.querySelector('#userForm button[type="submit"]');
+  if(btn) btn.textContent = 'บันทึกการแก้ไขพนักงาน';
+  document.getElementById('userForm').scrollIntoView({behavior:'smooth',block:'center'});
+};
+window.applyTaskAssignment = async function(taskId){
+  const data = __taskAdminCache || await getData();
+  const task = (data.tasks||[]).find(t=>t.id===taskId);
+  if(!task) return alert('ไม่พบงานนี้');
+  const select = document.getElementById('taskAssign-'+taskId);
+  const newAssignee = select ? select.value.trim() : '';
+  const oldAssignee = String(task.assignee||'').trim();
+  if(newAssignee === oldAssignee) return alert('ชื่อผู้รับงานยังเหมือนเดิม');
+  task.assignee = newAssignee;
+  task.comments ||= [];
+  const actionText = newAssignee ? `Supervisor เปลี่ยนผู้รับงานเป็น ${newAssignee}` : 'Supervisor ล้างชื่อผู้รับงาน';
+  task.comments.unshift({at:new Date().toISOString(), by:session.name, text:actionText});
+  await updateTask(task);
+  __taskAdminCache = await getData();
+  renderTaskAdmin(__taskAdminCache);
+  await render();
+  alert(newAssignee ? 'อัปเดตผู้รับงานเรียบร้อย' : 'ล้างชื่อผู้รับงานเรียบร้อย');
+};
 async function renderUsers(){
   await ensureUsersReady(true);
   const users = getUsersSnapshot();
@@ -107,6 +196,7 @@ window.removeStaffCode = async function(code){
   try{
     const result = await removeUser(code);
     await renderUsers();
+    renderTaskAdmin(__taskAdminCache);
     alert(result?.__localOnly ? 'ลบรหัสเรียบร้อย (บันทึกเฉพาะเครื่องนี้ก่อน เพราะ Firebase Rules ยังไม่เปิดสิทธิ์ users)' : 'ลบรหัสเรียบร้อย');
   }catch(err){
     alert(err?.message || 'ลบรหัสไม่สำเร็จ');
@@ -122,12 +212,19 @@ document.getElementById('userForm').addEventListener('submit', async (e)=>{
     const result = await createOrUpdateUser({code,name,position,role,department: role==='supervisor' ? 'Management' : 'HouseKeeping'});
     document.getElementById('userForm').reset();
     document.getElementById('userRole').value = 'hk';
+    const submitBtn = document.querySelector('#userForm button[type="submit"]');
+    if(submitBtn) submitBtn.textContent = 'สร้าง ID พนักงานใหม่';
     await renderUsers();
+    renderTaskAdmin(__taskAdminCache);
     alert(result?.__localOnly ? 'สร้าง ID สำเร็จแล้ว แต่บันทึกได้เฉพาะเครื่องนี้ก่อน เพราะ Firebase Rules ยังไม่เปิดสิทธิ์ collection ผู้ใช้' : 'บันทึกรหัสพนักงานเรียบร้อย');
   }catch(err){
     alert(err?.message || 'บันทึกรหัสไม่สำเร็จ');
   }
 });
+
+document.getElementById('taskAdminSearch').addEventListener('input', ()=>renderTaskAdmin(__taskAdminCache));
+document.getElementById('taskAdminFilter').addEventListener('change', ()=>renderTaskAdmin(__taskAdminCache));
+document.getElementById('refreshTaskAdminBtn').onclick = async ()=>{ __taskAdminCache = await getData(); renderTaskAdmin(__taskAdminCache); };
 
 (async()=>{
   setFirebaseStatus('firebaseStatus','checking');
