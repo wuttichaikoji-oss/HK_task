@@ -929,3 +929,13 @@ input[type="file"]{padding:12px 14px;line-height:1.35}
   .supervisor-task-row{grid-template-columns:1fr;align-items:flex-start}
   .task-assign-box .task-assign-select{width:100%}
 }
+
+
+/* v2.0.3h HK my tasks thai clean */
+.hk-page header .row:last-child{gap:10px}
+.hk-page .top-title{letter-spacing:.04em}
+.hk-page .section-title{letter-spacing:.01em}
+.hk-page .mobile-shell{max-width:920px}
+.hk-page .section-head .small{max-width:620px}
+.hk-page .assign-owner-label{font-size:12px}
+.hk-page .note-box{line-height:1.55}
