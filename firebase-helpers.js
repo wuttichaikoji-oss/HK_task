@@ -1,14 +1,79 @@
-window.firebaseHelpers=null;(async function(){if(!window.FIREBASE_ENABLED)return;try{const a=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");const f=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");const m=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging.js");const app=a.initializeApp(window.FIREBASE_CONFIG),db=f.getFirestore(app),tasksCol=f.collection(db,window.FIREBASE_TASKS_COLLECTION),logsCol=f.collection(db,window.FIREBASE_LOGS_COLLECTION),usersCol=f.collection(db,window.FIREBASE_USERS_COLLECTION),tokenCol=window.FIREBASE_DEVICE_TOKENS_COLLECTION;let messaging=null;try{messaging=m.getMessaging(app);}catch(e){} async function arr(col){const s=await f.getDocs(f.query(col));return s.docs.map(d=>({id:d.id,...d.data()}));}
-window.firebaseHelpers={
-async getData(){const [tasks,logs]=await Promise.all([arr(tasksCol),arr(logsCol)]);tasks.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));logs.sort((a,b)=>new Date(b.closedAt||b.createdAt||0)-new Date(a.closedAt||a.createdAt||0));return{tasks,logs};},
-async upsertTask(task){const id=task.id||crypto.randomUUID();const payload={...task,id,updatedAt:new Date().toISOString()};await f.setDoc(f.doc(db,window.FIREBASE_TASKS_COLLECTION,id),payload);return payload;},
-async deleteTask(id){await f.deleteDoc(f.doc(db,window.FIREBASE_TASKS_COLLECTION,id));},
-async addLog(logItem){const id=logItem.id||crypto.randomUUID();await f.setDoc(f.doc(db,window.FIREBASE_LOGS_COLLECTION,id),{...logItem,id});},
-subscribe(onChange){const u1=f.onSnapshot(f.query(tasksCol),async()=>onChange(await this.getData()));const u2=f.onSnapshot(f.query(logsCol),async()=>onChange(await this.getData()));return()=>{u1();u2();};},
-async getUsers(){const users=await arr(usersCol);users.sort((a,b)=>(a.department||'').localeCompare(b.department||'')||(a.name||'').localeCompare(b.name||''));return users;},
-async ensureDefaultUsers(def){const cur=await this.getUsers();if(cur.length)return cur;for(const u of def){await f.setDoc(f.doc(db,window.FIREBASE_USERS_COLLECTION,u.code),{...u,id:u.code,createdAt:new Date().toISOString()});}return await this.getUsers();},
-async upsertUser(user){await f.setDoc(f.doc(db,window.FIREBASE_USERS_COLLECTION,user.code),{...user,id:user.code,updatedAt:new Date().toISOString()});},
-async deleteUser(code){await f.deleteDoc(f.doc(db,window.FIREBASE_USERS_COLLECTION,code));},
-async listDeviceTokens(){const s=await f.getDocs(f.query(f.collection(db,tokenCol)));return s.docs.map(d=>({id:d.id,...d.data()}));},
-async registerDeviceToken(session){if(!messaging)throw new Error("Messaging unavailable");if(!window.FIREBASE_VAPID_KEY)throw new Error("ยังไม่ได้ใส่ VAPID key");const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error("ผู้ใช้ยังไม่อนุญาต notification");const swReg=await navigator.serviceWorker.register('/HK_task/firebase-messaging-sw.js');await navigator.serviceWorker.ready;const token=await m.getToken(messaging,{vapidKey:window.FIREBASE_VAPID_KEY,serviceWorkerRegistration:swReg});if(!token)throw new Error("ไม่สามารถสร้าง token ได้");await f.setDoc(f.doc(db,tokenCol,token),{token,userName:session?.name||'',role:session?.role||'',department:session?.department||'',enabled:true,updatedAt:new Date().toISOString(),userAgent:navigator.userAgent});return token;}
-};}catch(err){console.error("Firebase init error:",err);}})();
+window.firebaseHelpers = null;
+(async function(){
+  if(!window.FIREBASE_ENABLED) return;
+  try{
+    const appMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+    const fsMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+    const msgMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging.js");
+    const app = appMod.initializeApp(window.FIREBASE_CONFIG);
+    const db = fsMod.getFirestore(app);
+    const tasksCol = fsMod.collection(db, window.FIREBASE_TASKS_COLLECTION || "hk_tasks_v19");
+    const logsCol = fsMod.collection(db, window.FIREBASE_LOGS_COLLECTION || "hk_logs_v19");
+    const tokenCol = window.FIREBASE_DEVICE_TOKENS_COLLECTION || "device_tokens";
+    let messaging = null; try { messaging = msgMod.getMessaging(app); } catch (e) {}
+    window.firebaseHelpers = {
+      async getData(){
+        const [tasksSnap, logsSnap] = await Promise.all([fsMod.getDocs(fsMod.query(tasksCol)), fsMod.getDocs(fsMod.query(logsCol))]);
+        return {
+          tasks: tasksSnap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)),
+          logs: logsSnap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>new Date(b.closedAt||b.createdAt||0)-new Date(a.closedAt||a.createdAt||0)),
+        };
+      },
+      async replaceAllData(data){
+        const current = await this.getData();
+        for(const t of current.tasks){ await fsMod.deleteDoc(fsMod.doc(db, window.FIREBASE_TASKS_COLLECTION || "hk_tasks_v19", t.id)); }
+        for(const l of current.logs){ await fsMod.deleteDoc(fsMod.doc(db, window.FIREBASE_LOGS_COLLECTION || "hk_logs_v19", l.id)); }
+        for(const t of (data.tasks||[])){ await this.upsertTask(t); }
+        for(const l of (data.logs||[])){ await this.addLog(l); }
+      },
+      async upsertTask(task){
+        const id=task.id||crypto.randomUUID();
+        const payload={...task,id,updatedAt:new Date().toISOString()};
+        await fsMod.setDoc(fsMod.doc(db, window.FIREBASE_TASKS_COLLECTION || "hk_tasks_v19", id), payload);
+        return payload;
+      },
+      async deleteTask(id){ await fsMod.deleteDoc(fsMod.doc(db, window.FIREBASE_TASKS_COLLECTION || "hk_tasks_v19", id)); },
+      async addLog(logItem){
+        const id=logItem.id||crypto.randomUUID();
+        await fsMod.setDoc(fsMod.doc(db, window.FIREBASE_LOGS_COLLECTION || "hk_logs_v19", id), {...logItem,id});
+      },
+      subscribe(onChange){
+        const unsub1 = fsMod.onSnapshot(fsMod.query(tasksCol), async ()=>{ onChange(await this.getData()); });
+        const unsub2 = fsMod.onSnapshot(fsMod.query(logsCol), async ()=>{ onChange(await this.getData()); });
+        return ()=>{unsub1();unsub2();};
+      },
+      async listDeviceTokens(){
+        const snap = await fsMod.getDocs(fsMod.query(fsMod.collection(db, tokenCol)));
+        return snap.docs.map(doc => ({id:doc.id, ...doc.data()}))
+          .sort((a,b)=> new Date(b.updatedAt||0) - new Date(a.updatedAt||0));
+      },
+      async registerDeviceToken(session){
+        if(!messaging) throw new Error("Messaging unavailable");
+        if(!window.FIREBASE_VAPID_KEY || window.FIREBASE_VAPID_KEY === 'REPLACE_ME') throw new Error("ยังไม่ได้ใส่ VAPID key");
+        if (!('serviceWorker' in navigator)) throw new Error("เบราว์เซอร์ไม่รองรับ service worker");
+        if (!('Notification' in window)) throw new Error("เบราว์เซอร์ไม่รองรับ notification");
+        const permission = await Notification.requestPermission();
+        if(permission !== 'granted') throw new Error("ผู้ใช้ยังไม่อนุญาต notification");
+        const swReg = await navigator.serviceWorker.register('/HK_task/firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready;
+        const token = await msgMod.getToken(messaging,{vapidKey:window.FIREBASE_VAPID_KEY,serviceWorkerRegistration:swReg});
+        if(!token) throw new Error("ไม่สามารถสร้าง token ได้");
+        await fsMod.setDoc(fsMod.doc(db, tokenCol, token), {
+          token,
+          userName:session?.name||'',
+          role:session?.role||'',
+          department:session?.department||'',
+          updatedAt:new Date().toISOString(),
+          userAgent:navigator.userAgent,
+          enabled:true
+        });
+        msgMod.onMessage(messaging,(payload)=>{
+          const title = payload?.notification?.title || 'มีงานใหม่จาก Front Office';
+          const body = payload?.notification?.body || '';
+          if(Notification.permission==='granted'){ new Notification(title,{body}); }
+        });
+        return token;
+      }
+    };
+  }catch(err){console.error("Firebase init error:", err);}
+})();
