@@ -1,177 +1,73 @@
+# Laya Multi Department Task App v1.0
 
-# HOUSEKEEPING TASK v1.9
+ระบบใหม่แยกออกจาก HK Task เดิม เพื่อเก็บ HK Task เดิมเป็น backup
 
-เวอร์ชันนี้ปรับ workflow ให้ง่ายขึ้นตามคอนเซปต์ใช้งานจริงในโรงแรม
+## Roles
+- Manager
+- FO
+- HK
+- FB
+- ENG
+- Supervisor HK
+- Supervisor FB
+- Supervisor ENG
 
-## Workflow ใหม่
-- `New from FO`
-- `In Progress`
-- `Done by HK`
-- `Close job by FO` → ย้ายการ์ดออกจากบอร์ดไปเก็บใน `LOG / Report`
+## Flow
+- FO เปิดงานและเลือกแผนกปลายทาง HK / FB / ENG
+- Supervisor ของแต่ละแผนก assign งานภายในแผนกตัวเอง
+- แผนกปลายทางทำงานแบบเดียวกับ HK เดิม
+- FO ปิดงานแล้วงานจะย้ายไป LOG
 
-## หน้าหลัก
-- `index.html` = ล็อกอิน
-- `fo.html` = Front Office เปิดงาน / ปิดงาน
-- `hk.html` = HouseKeeping รับงาน / ทำงาน / ส่งงานเสร็จ
-- `board.html` = บอร์ดรวมเฉพาะงาน active
-- `log.html` = ประวัติงานที่ปิดแล้ว + Report
-- `supervisor.html` = หน้าภาพรวม
+## Pages
+- manager.html
+- fo.html
+- hk.html
+- fb.html
+- eng.html
+- supervisor-hk.html
+- supervisor-fb.html
+- supervisor-eng.html
+- board.html
+- log.html
 
-## สิ่งที่เพิ่มใน v1.9
-- ตัดขั้น `Accepted by HK` ออก
-- HK กด `In Progress` ได้เลย
-- FO ปิดงานแล้วงานจะถูกย้ายออกจากบอร์ดทันที
-- มีหน้า `LOG / Report`
-- มีตัวเลข report เบื้องต้น:
-  - จำนวนงานปิดแล้ว
-  - เวลาเฉลี่ย
-  - จำนวนงานที่ปิดวันนี้
-  - งานเร่งด่วนที่ปิดแล้ว
+## Firebase Collections
+- multi_dept_tasks_v1
+- multi_dept_logs_v1
+- multi_dept_users_v1
+- device_tokens
 
-## รหัสทดลอง
-- FO Main = 1101
-- Supervisor 1 = 9101
-- Supervisor 2 = 9102
-- HK IDs สร้างเพิ่มได้จากหน้า Supervisor
-
-## หมายเหตุ
-- ถ้ายังไม่เชื่อม Firebase ระบบจะใช้ Local Demo Mode
-- ถ้าเชื่อม Firebase สำเร็จ จะ sync งานและ log ข้ามเครื่องแบบ realtime
-
-
-## แก้ไขใน v1.9.1
-- เพิ่มตัวตรวจสอบว่าเว็บเชื่อม Firebase ได้หรือยัง
-- แต่ละหน้าจะแสดงสถานะ เช่น
-  - เชื่อม Firebase สำเร็จ
-  - พบ config แล้ว แต่ Firebase ยังไม่พร้อม
-  - กำลังใช้ Local Mode
-  - Firebase มีปัญหา
-- ถ้าเชื่อมสำเร็จ จะแสดงจำนวน Tasks / Logs ที่อ่านได้จาก Firebase
-
-
-## แก้ไขใน v1.9.2
-- จัดตำแหน่งสถานะ Firebase ใหม่ ไม่ให้ลอยกลางจอ
-- ปรับหน้า HK ให้ดูสมดุลขึ้น มี KPI ย่อยด้านบน
-- ล็อกปุ่มตามสถานะงานจริง
-- ปรับหน้า FO / Board / Log / Supervisor ให้แสดงสถานะ Firebase แบบเนียนขึ้น
-
-
-## แก้ไขใน v1.9.3
-- บอร์ดรวมจะซ่อนงานที่เป็น legacy status อัตโนมัติ
-- จำนวนการ์ดบนบอร์ดจะตรงกับตัวเลขสรุปด้านบน
-- เพิ่ม notice แจ้งเมื่อมีงานสถานะเก่าถูกซ่อน
-- หน้า Supervisor แยกให้เห็นจำนวน Active Tasks และ Legacy Hidden
-
-
-## แก้ไขใน v1.9.4
-- เพิ่มปุ่ม `ปิดจบงาน` ในหน้าบอร์ดรวมฝั่ง FO สำหรับงานสถานะ `Done by HK`
-- เมื่อ FO ปิดจบงานจากบอร์ดรวม งานจะถูกย้ายเข้า LOG ทันที
-- เพิ่มส่วน `LOG ด้านล่างบอร์ด` เพื่อดูงานที่ปิดแล้วได้จากหน้าเดียว
-
-
-## อัปเดต v2.0
-- เพิ่มระบบแจ้งเตือนเร็วแบบ `แจ้งทุกเครื่อง HK`
-- เมื่อ FO ส่งงานใหม่ ระบบจะส่ง push notification ไปยังอุปกรณ์ที่ลงทะเบียนเป็น role `hk`
-- ทุกหน้าเพิ่มปุ่ม `เปิดแจ้งเตือน`
-- HK ต้องกด `เปิดแจ้งเตือน` และกดยอมรับ Notification อย่างน้อย 1 ครั้งต่อเครื่อง
-- ระบบใช้ Firebase Cloud Messaging + Cloud Function
-
-### วิธีใช้งานแจ้งเตือน
-1. อัปเดตไฟล์ขึ้นโฮสต์
-2. เปิดแอพฝั่ง HK
-3. กดปุ่ม `เปิดแจ้งเตือน`
-4. อนุญาต Notification
-5. จากนั้นเมื่อ FO สร้างงานใหม่ HK ทุกเครื่องที่ลงทะเบียนไว้จะได้รับแจ้งเตือนทันที
-
-
-## อัปเดต v2.0.1
-- เปลี่ยนชื่อหัวข้อด้านล่างบอร์ดจาก `LOG` เป็น `LOG Detail`
-- เปลี่ยนรูปแบบจากการ์ดใหญ่เป็นรายการหัวข้อเล็กแบบกดขยายดูได้
-- ทำให้ส่วน LOG ด้านล่างบอร์ดดูสะอาดและไม่รกมากขึ้น
-
-
-## อัปเดต v2.0.2
-- เพิ่มหน้าตรวจสอบสถานะ token ในหน้า Supervisor
-- ดูได้ว่าเครื่อง HK ไหนเปิดแจ้งเตือนแล้วบ้าง
-- แยกนับเครื่องตาม role:
-  - HK
-  - FO
-  - Supervisor
-- มีปุ่มรีเฟรชรายการ token
-
-
-## อัปเดต v2.0.4
-- บังคับให้อัปโหลดรูปก่อนส่งงานเป็น `Done by HK`
-- ถ้าไม่แนบรูป ระบบจะไม่ยอมส่งงาน
-- ใช้ได้ทั้งในปุ่มบนการ์ดและแบบฟอร์มอัปเดตงาน
-
-
-## อัปเดต v2.0.5
-- เมนูพนักงานทั่วไป (HK) เหลือแค่:
-  - เปิดแจ้งเตือน
-  - ออกจากระบบ
-- ซ่อนปุ่มหน้าอื่นทั้งหมด
-- เพิ่ม security: ถ้า role ไม่ใช่ HK จะถูก redirect
-
-
-## อัปเดต v2.0.6
-- เพิ่มเสียงแจ้งเตือนเมื่อมีงานใหม่เข้าฝั่ง HK
-- เพิ่ม vibration บนมือถือเมื่อมีงานใหม่
-- เมื่อมีงานใหม่โผล่ในหน้า HK ระบบจะเตือนทันที
-
-
-## อัปเดต v2.0.6.2
-- แก้ Service Worker แบบฝัง Firebase config ตรงใน `firebase-messaging-sw.js`
-- ลดปัญหา `ServiceWorker script evaluation failed`
-- ใช้ path แบบ relative สำหรับ GitHub Pages ใต้โฟลเดอร์ `HK_task`
-
-
-## อัปเดต v2.0.6.3
-- แก้ Service Worker ให้ใช้ syntax แบบเก่า ลดปัญหา script evaluation failed
-- เปลี่ยน path register ให้ตรงกับ GitHub Pages ที่อยู่ใต้ `/HK_task/`
-- เพิ่ม diagnostics สำหรับ notification บนหน้า login
-- เพิ่มไฟล์ `PUSH_TROUBLESHOOTING.txt`
-
-
-## อัปเดต v2.0.6.4
-- ลด `firebase-messaging-sw.js` ให้เหลือ minimal ที่สุดเพื่อให้ register ผ่านง่ายขึ้น
-- ใช้ Firebase compat เวอร์ชัน 9.22.2 ใน service worker
-- ตัด `onBackgroundMessage` ออกชั่วคราว เพื่อโฟกัสให้เปิดแจ้งเตือนผ่านก่อน
-- ยังคงใช้ path `/HK_task/firebase-messaging-sw.js`
-
-
-## อัปเดต v2.1
-- ใช้ Firebase Cloud Functions สำหรับแจ้งเตือนจริง
-- เมื่อ FO สร้างงานใหม่ ระบบจะส่ง push ไปทุกเครื่องที่ลงทะเบียนเป็น role `hk`
-- เมื่อสถานะงานเปลี่ยน ระบบส่งอัปเดตไปฝั่ง FO ที่ลงทะเบียนไว้
-- เพิ่มเสียงแจ้งเตือนแบบกำหนดเองในหน้า HK โดยใช้ไฟล์ `assets/alert-hk.mp3`
-
-### ข้อจำกัดเรื่องเสียง
-- ถ้าหน้า HK เปิดอยู่ ระบบจะเล่นไฟล์เสียงที่กำหนดเองได้
-- ถ้าเป็น push ตอนเบราว์เซอร์อยู่เบื้องหลัง/ปิดอยู่ จะใช้เสียงแจ้งเตือนมาตรฐานของระบบ/เบราว์เซอร์ ไม่สามารถบังคับเป็น mp3 เฉพาะได้เสมอ
-
-### วิธี deploy Cloud Functions
-1. เปิด terminal ที่โฟลเดอร์โปรเจกต์
-2. รัน `npm install` ภายในโฟลเดอร์ `functions`
-3. ติดตั้ง Firebase CLI และล็อกอิน
-4. รัน `firebase deploy --only functions,hosting`
-
-### สิ่งที่ต้องมีใน Firestore Rules
-```
-match /device_tokens/{document} {
-  allow read, write: if true;
+## Firestore Rules ที่ต้องมีเพิ่ม
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /multi_dept_tasks_v1/{document} { allow read, write: if true; }
+    match /multi_dept_logs_v1/{document} { allow read, write: if true; }
+    match /multi_dept_users_v1/{document} { allow read, write: if true; }
+    match /device_tokens/{document} { allow read, write: if true; }
+  }
 }
-match /hk_tasks_v19/{document} {
-  allow read, write: if true;
-}
-match /hk_logs_v19/{document} {
-  allow read, write: if true;
-}
-```
+
+## Default Login
+- FO A = 1001
+- HK A = 2001
+- FB A = 3001
+- ENG A = 4001
+- Supervisor HK = 9100
+- Supervisor FB = 9200
+- Supervisor ENG = 9300
+- Manager = 9900
 
 
-## อัปเดต v2.1.1
-- ตัดเสียงแจ้งเตือนออก เหลือ vibration only
-- งานใหม่จาก FO: สั่น 5 ครั้ง
-- อัปเดตสถานะงาน: สั่น 2 ครั้ง
-- เหมาะกับการใช้งานบนมือถือมากกว่าเสียงจากเว็บ
+## อัปเดต v1.1
+- เพิ่ม popup แจ้งเตือนแยกตามแผนก
+  - HK เห็น popup ของ HK เท่านั้น
+  - FB เห็น popup ของ FB เท่านั้น
+  - ENG เห็น popup ของ ENG เท่านั้น
+- popup จะแสดงเมื่อมีงานใหม่ `New from FO`
+- มีปุ่ม `ดูงาน` และ `ปิด`
+
+
+## อัปเดต v1.2
+- ปรับหน้า Supervisor HK / FB / ENG ให้ใช้ layout แนวเดียวกับไฟล์ supervisor ที่ผู้ใช้อัปโหลด fileciteturn1file0
+- Supervisor แต่ละแผนกสร้างรหัสทีมตัวเองและ assign งานในแผนกตัวเองได้
+- ปรับ fallback การล็อกอินให้ Manager code `9900` เข้าได้ง่ายขึ้น

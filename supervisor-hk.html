@@ -1,0 +1,217 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SUPERVISOR HK</title><link rel="stylesheet" href="styles.css"></head><body>
+<header><div class="wrap row space"><div class="brand"><div class="brand-logo-wrap"><img class="brand-logo" src="assets/laya-logo.png" alt="Laya Resort Phuket"></div><div class="brand-copy"><div class="brand-sub">Laya Resort Phuket</div><div class="top-title">SUPERVISOR HK</div><div id="welcome" class="small"></div></div></div><div class="row"><a href="board.html" class="ghost">บอร์ดรวม</a><a href="log.html" class="ghost">LOG / Report</a><button class="ghost" id="enablePushBtn">เปิดแจ้งเตือน</button><button class="ghost" id="logoutBtn">ออกจากระบบ</button></div></div></header>
+<div class="wrap">
+  <div id="firebaseStatus" class="firebase-inline" style="margin-bottom:14px;"></div>
+  <div class="section-head" style="margin:8px 0 16px;"><div><h2 class="section-title">จัดการแผนก HK</h2><div class="small">Supervisor HK ใช้สร้างรหัสทีมตัวเอง และ assign งานภายในแผนกตัวเอง</div></div><a href="#userForm" class="good cta-link">+ สร้าง ID ทีม HK</a></div>
+
+  <div class="panel user-admin-panel">
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">จัดการรหัสพนักงาน HK</h2>
+        <div class="notice create-user-notice">กดปุ่ม <b>สร้าง ID พนักงานใหม่</b> ด้านล่างเพื่อเพิ่มรหัสพนักงาน HK หรือ Supervisor HK</div>
+        <div class="small">Supervisor HK สามารถสร้างและแก้ไขรหัสพนักงานของทีมตัวเองได้</div>
+      </div>
+    </div>
+    <div class="user-admin-grid">
+      <form id="userForm" class="ops-form-card compact-grid highlight-create-form">
+        <div class="grid grid-2 compact-grid">
+          <div><label>ID พนักงาน</label><input id="userCode" placeholder="เช่น 2001 / 3001 / 4001"></div>
+          <div><label>ชื่อพนักงาน</label><input id="userName" placeholder="เช่น Noi / Somchai"></div>
+        </div>
+        <div class="grid grid-2 compact-grid">
+          <div><label>ตำแหน่ง</label><input id="userPosition" placeholder="เช่น Staff / Captain / Supervisor"></div>
+          <div><label>ระดับผู้ใช้</label><select id="userRole"><option value="hk">พนักงานปฏิบัติงาน (HK)</option><option value="supervisor_hk">SUPERVISOR HK</option></select></div>
+        </div>
+        <div class="actions"><button class="good big-action" type="submit">สร้าง ID ทีม HK</button></div>
+      </form>
+      <div class="ops-form-card">
+        <div class="section-head" style="margin-bottom:10px;">
+          <h3 class="section-title" style="font-size:16px;margin:0;">รายการรหัสที่เปิดใช้งาน</h3>
+          <div class="small" id="userCountText">0 IDs</div>
+        </div>
+        <div id="userList" class="user-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel task-admin-panel">
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">Assign งานภายในแผนก HK</h2>
+        <div class="small">Supervisor HK เลือกชื่อคนทำงานจากระบบเพื่อมอบหมายหรือย้ายงานภายในทีมตัวเอง</div>
+      </div>
+      <button class="ghost" id="refreshTaskAdminBtn">รีเฟรชงาน</button>
+    </div>
+    <div class="row mobile-toolbar" style="margin-bottom:14px;">
+      <input id="taskAdminSearch" class="table-search" placeholder="ค้นหาห้อง / งาน / ผู้รับงาน / สถานะ">
+      <select id="taskAdminFilter" class="toolbar-select">
+        <option value="all">ทุกสถานะ</option>
+        <option value="New from FO">New from FO</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Done by Department">Done by Department</option>
+      </select>
+    </div>
+    <div id="taskAdminList" class="supervisor-task-list"></div>
+  </div>
+
+  <div class="panel token-panel">
+    <div class="section-head">
+      <h2 class="section-title">สถานะอุปกรณ์ที่เปิดแจ้งเตือน</h2>
+      <button class="ghost" id="refreshTokensBtn">รีเฟรช</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="small">เครื่องทั้งหมด</div><div class="n" id="tokAll">0</div></div>
+      <div class="stat"><div class="small">HK เปิดแจ้งเตือน</div><div class="n" id="tokDept">0</div></div>
+      <div class="stat"><div class="small">FO เปิดแจ้งเตือน</div><div class="n" id="tokFO">0</div></div>
+      <div class="stat"><div class="small">SUPERVISOR HK เปิดแจ้งเตือน</div><div class="n" id="tokSV">0</div></div>
+    </div>
+    <div class="token-grid">
+      <div class="token-box"><h3 class="section-title" style="font-size:16px">HK ที่เปิดแจ้งเตือนแล้ว</h3><div id="deptTokenList"></div></div>
+      <div class="token-box"><h3 class="section-title" style="font-size:16px">FO ที่เปิดแจ้งเตือนแล้ว</h3><div id="foTokenList"></div></div>
+      <div class="token-box"><h3 class="section-title" style="font-size:16px">SUPERVISOR HK ที่เปิดแจ้งเตือนแล้ว</h3><div id="svTokenList"></div></div>
+    </div>
+  </div>
+</div>
+<script src="firebase-config.js"></script><script src="users-config.js"></script><script src="firebase-helpers.js"></script><script src="common.js"></script>
+<script>
+const session=requireRole('supervisor_hk');
+document.getElementById('welcome').textContent='ผู้ใช้งาน: '+session.name;
+document.getElementById('logoutBtn').onclick=logout;
+document.getElementById('enablePushBtn').onclick=()=>enableNotificationsForCurrentUser(session,'firebaseStatus');
+
+let __taskAdminCache = null;
+let __usersCache = [];
+
+function deptUsers(users){ return users.filter(u=>u.role==='hk' || u.role==='supervisor_hk'); }
+function userCard(u){
+  const safeCode = JSON.stringify(u.code);
+  return `<div class="user-card">
+    <div>
+      <div class="user-card-title">${escapeHtml(u.name)} <span class="code">${escapeHtml(u.code)}</span></div>
+      <div class="small">${escapeHtml(roleLabel(u.role))} • ${escapeHtml(u.position||u.department||'-')}</div>
+    </div>
+    <div class="actions" style="margin-top:0;">
+      <span class="badge">${escapeHtml(roleLabel(u.role))}</span>
+      <button class="ghost" onclick='editStaffCode(${safeCode})'>แก้ไข</button>
+      <button class="bad" onclick="removeStaffCode('${u.code}')">ลบ</button>
+    </div>
+  </div>`;
+}
+function assignmentOptions(task){
+  const selected = String(task.assignee||'').trim();
+  const opts = __usersCache.filter(u=>u.role==='hk').map(u=>`<option value="${escapeHtml(u.name)}" ${selected===u.name?'selected':''}>${escapeHtml(u.name)} (${escapeHtml(u.code)})</option>`).join('');
+  return `<select id="taskAssign-${task.id}" class="toolbar-select task-assign-select"><option value="">ยังไม่ระบุ</option>${opts}</select>`;
+}
+function taskAdminRow(task){
+  return `<div class="supervisor-task-row">
+    <div>
+      <div class="user-card-title">${escapeHtml(task.room||'-')} • ${escapeHtml(task.title||'-')}</div>
+      <div class="small clamp-2">${escapeHtml(task.desc||'-')}</div>
+    </div>
+    <div>
+      <div class="small">ผู้รับงานปัจจุบัน</div>
+      <div class="task-current-assignee">${escapeHtml(task.assignee||'ยังไม่ระบุ')}</div>
+    </div>
+    <div>${statusBadge(task)}</div>
+    <div class="small">เปิด ${fmtDate(task.createdAt)}</div>
+    <div class="task-assign-box">${assignmentOptions(task)}</div>
+    <div class="actions" style="margin-top:0;justify-content:flex-end;">
+      <button class="secondary" onclick="applyTaskAssignment('${task.id}')">Assign จากระบบ</button>
+    </div>
+  </div>`;
+}
+function renderTaskAdmin(data){
+  const tasks = [...((data && data.tasks) || [])].filter(t=>t.targetDepartment==='HK' && ['New from FO','In Progress','Done by Department'].includes(t.status)).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  const q = document.getElementById('taskAdminSearch').value.trim().toLowerCase();
+  const status = document.getElementById('taskAdminFilter').value;
+  const filtered = tasks.filter(t=>{
+    const matchQ = !q || [t.room,t.title,t.desc,t.assignee,t.requestedBy,t.status].some(v=>String(v||'').toLowerCase().includes(q));
+    const matchStatus = status==='all' || t.status===status;
+    return matchQ && matchStatus;
+  });
+  document.getElementById('taskAdminList').innerHTML = filtered.map(taskAdminRow).join('') || '<div class="small">ยังไม่มีงานที่สามารถ Assign ได้</div>';
+}
+window.editStaffCode = function(code){
+  const u = __usersCache.find(x=>String(x.code)===String(code));
+  if(!u) return;
+  document.getElementById('userCode').value = u.code || '';
+  document.getElementById('userName').value = u.name || '';
+  document.getElementById('userPosition').value = u.position || '';
+  document.getElementById('userRole').value = u.role || 'hk';
+  const btn = document.querySelector('#userForm button[type="submit"]');
+  if(btn) btn.textContent = 'บันทึกการแก้ไขพนักงาน';
+  document.getElementById('userForm').scrollIntoView({behavior:'smooth',block:'center'});
+};
+window.applyTaskAssignment = async function(taskId){
+  const data = __taskAdminCache || await getData();
+  const task = (data.tasks||[]).find(t=>t.id===taskId);
+  if(!task) return alert('ไม่พบงานนี้');
+  const select = document.getElementById('taskAssign-'+taskId);
+  const newAssignee = select ? select.value.trim() : '';
+  if(newAssignee === String(task.assignee||'').trim()) return alert('ชื่อผู้รับงานยังเหมือนเดิม');
+  task.assignedBy = session.name;
+  task.assignee = newAssignee;
+  task.comments ||= [];
+  task.comments.unshift({at:new Date().toISOString(), by:session.name, text:'SUPERVISOR HK เปลี่ยนผู้รับงานเป็น ' + (newAssignee || 'ยังไม่ระบุ')});
+  await updateTask(task);
+  __taskAdminCache = await getData();
+  renderTaskAdmin(__taskAdminCache);
+  alert('อัปเดตผู้รับงานเรียบร้อย');
+};
+async function renderUsers(){
+  await ensureUsersReady();
+  const users = await getUsers();
+  __usersCache = deptUsers(users);
+  document.getElementById('userCountText').textContent = __usersCache.length + ' IDs';
+  document.getElementById('userList').innerHTML = __usersCache.map(userCard).join('') || '<div class="small">ยังไม่มีรหัสพนักงาน</div>';
+}
+window.removeStaffCode = async function(code){
+  if(!confirm('ลบรหัส ' + code + ' ใช่หรือไม่')) return;
+  try{ await deleteUser(code); await renderUsers(); renderTaskAdmin(__taskAdminCache); alert('ลบรหัสเรียบร้อย'); }
+  catch(err){ alert(err?.message || 'ลบรหัสไม่สำเร็จ'); }
+};
+document.getElementById('userForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const code = document.getElementById('userCode').value.trim();
+  const name = document.getElementById('userName').value.trim();
+  const position = document.getElementById('userPosition').value.trim();
+  const userRole = document.getElementById('userRole').value;
+  try{
+    await createOrUpdateUser({code,name,position,role:userRole,department:'HK'}); 
+    document.getElementById('userForm').reset();
+    document.getElementById('userRole').value = 'hk';
+    const submitBtn = document.querySelector('#userForm button[type="submit"]');
+    if(submitBtn) submitBtn.textContent = 'สร้าง ID ทีม HK';
+    await renderUsers();
+    renderTaskAdmin(__taskAdminCache);
+    alert('บันทึกรหัสพนักงานเรียบร้อย');
+  }catch(err){ alert(err?.message || 'บันทึกรหัสไม่สำเร็จ'); }
+});
+document.getElementById('taskAdminSearch').addEventListener('input', ()=>renderTaskAdmin(__taskAdminCache));
+document.getElementById('taskAdminFilter').addEventListener('change', ()=>renderTaskAdmin(__taskAdminCache));
+document.getElementById('refreshTaskAdminBtn').onclick = async ()=>{ __taskAdminCache = await getData(); renderTaskAdmin(__taskAdminCache); };
+async function renderTokens(){
+  const info = await loadTokenStatus();
+  document.getElementById('tokAll').textContent = info.tokens.length;
+  document.getElementById('tokDept').textContent = (info['hk']||[]).length;
+  document.getElementById('tokFO').textContent = info.fo.length;
+  document.getElementById('tokSV').textContent = (info.supervisors||[]).filter(x=>x.role==='supervisor_hk').length;
+  document.getElementById('deptTokenList').innerHTML = renderTokenRows(info['hk']||[]);
+  document.getElementById('foTokenList').innerHTML = renderTokenRows(info.fo);
+  document.getElementById('svTokenList').innerHTML = renderTokenRows((info.supervisors||[]).filter(x=>x.role==='supervisor_hk'));
+}
+(async()=>{
+  setFirebaseStatus('firebaseStatus','checking');
+  const fb = await checkFirebaseConnection();
+  if(fb.ok) setFirebaseStatus('firebaseStatus','connected', fb.detail); else setFirebaseStatus('firebaseStatus', fb.mode, fb.detail);
+  await ensureUsersReady();
+  await seedData();
+  await renderUsers();
+  __taskAdminCache = await getData();
+  renderTaskAdmin(__taskAdminCache);
+  await renderTokens();
+  if(isFirebaseReady()){
+    const wait=setInterval(()=>{if(window.firebaseHelpers?.subscribe){clearInterval(wait);window.firebaseHelpers.subscribe(async(data)=>{__taskAdminCache=data;renderTaskAdmin(__taskAdminCache);await renderTokens();})}},500);
+  }
+})();
+</script></body></html>
